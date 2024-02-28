@@ -15,7 +15,7 @@ class TransactionVerificationServiceStub(object):
             channel: A grpc.Channel.
         """
         self.VerifyTransaction = channel.unary_unary(
-                '/hello.TransactionVerificationService/VerifyTransaction',
+                '/transaction.verification.TransactionVerificationService/VerifyTransaction',
                 request_serializer=transaction__verification__pb2.TransactionRequest.SerializeToString,
                 response_deserializer=transaction__verification__pb2.TransactionResponse.FromString,
                 )
@@ -40,7 +40,7 @@ def add_TransactionVerificationServiceServicer_to_server(servicer, server):
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'hello.TransactionVerificationService', rpc_method_handlers)
+            'transaction.verification.TransactionVerificationService', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
 
 
@@ -59,7 +59,7 @@ class TransactionVerificationService(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/hello.TransactionVerificationService/VerifyTransaction',
+        return grpc.experimental.unary_unary(request, target, '/transaction.verification.TransactionVerificationService/VerifyTransaction',
             transaction__verification__pb2.TransactionRequest.SerializeToString,
             transaction__verification__pb2.TransactionResponse.FromString,
             options, channel_credentials,
