@@ -19,9 +19,8 @@ def verify_transaction(transaction_data):
     # Check if required user data is filled-in
     if not all(transaction_data.get(field) for field in ['user_id', 'shipping_address', 'payment_details']):
         return False, "Missing user data"
-
     # Check if the credit card format is correct (you can use a regex or a library for this)
-    if not is_valid_credit_card(transaction_data['payment_details'].get('credit_card')):
+    if not is_valid_credit_card(transaction_data['payment_details'].number):
         return False, "Invalid credit card format"
     # Implement your transaction verification logic here
     # This could include checks for non-empty items list, required user data, credit card format, etc.
@@ -41,9 +40,7 @@ class TransactionVerificationService(transaction_verification_grpc.TransactionVe
             'items': request.items,
             'user_id': request.user_id,
             'shipping_address': request.shipping_address,
-            'payment_details': {
-                'credit_card': request.credit_card
-            }
+            'payment_details': request.payment_details
         }
         # Perform transaction verification
         is_valid, message = verify_transaction(transaction_data)
