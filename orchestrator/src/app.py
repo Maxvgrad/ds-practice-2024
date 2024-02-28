@@ -57,26 +57,23 @@ def convert_to_verify_transaction_request(json_data):
     # Iterate over the JSON data and populate the fields of the TransactionRequest object
     for item_data in json_data['items']:
         item = transaction_request.items.add()
-        item.item_id = item_data['item_id']
         item.name = item_data['name']
         item.quantity = item_data['quantity']
-        item.price = item_data['price']
 
     # user_id field
-    transaction_request.user_id.user_id = json_data['user_id']
+    transaction_request.user_id.user_id = json_data.get('user_id', '-1') # TODO: user_id is missing in request
 
     # shipping_address field
-    transaction_request.shipping_address.street = json_data['shipping_address']['street']
-    transaction_request.shipping_address.city = json_data['shipping_address']['city']
-    transaction_request.shipping_address.state = json_data['shipping_address']['state']
-    transaction_request.shipping_address.zip = json_data['shipping_address']['zip']
-    transaction_request.shipping_address.country = json_data['shipping_address']['country']
+    transaction_request.shipping_address.street = json_data['billingAddress']['street']
+    transaction_request.shipping_address.city = json_data['billingAddress']['city']
+    transaction_request.shipping_address.state = json_data['billingAddress']['state']
+    transaction_request.shipping_address.zip = json_data['billingAddress']['zip']
+    transaction_request.shipping_address.country = json_data['billingAddress']['country']
 
     # payment_details field
-    transaction_request.payment_details.number = json_data['payment_details']['number']
-    transaction_request.payment_details.expiration_date = json_data['payment_details']['expiration_date']
-    transaction_request.payment_details.cvv = json_data['payment_details']['cvv']
-    transaction_request.payment_details.cardholder_name = json_data['payment_details']['cardholder_name']
+    transaction_request.payment_details.number = json_data['creditCard']['number']
+    transaction_request.payment_details.expiration_date = json_data['creditCard']['expirationDate']
+    transaction_request.payment_details.cvv = json_data['creditCard']['cvv']
 
     return transaction_request
 

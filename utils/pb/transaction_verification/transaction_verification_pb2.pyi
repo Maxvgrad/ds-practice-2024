@@ -6,16 +6,12 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Item(_message.Message):
-    __slots__ = ("item_id", "name", "quantity", "price")
-    ITEM_ID_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("name", "quantity")
     NAME_FIELD_NUMBER: _ClassVar[int]
     QUANTITY_FIELD_NUMBER: _ClassVar[int]
-    PRICE_FIELD_NUMBER: _ClassVar[int]
-    item_id: str
     name: str
-    quantity: str
-    price: str
-    def __init__(self, item_id: _Optional[str] = ..., name: _Optional[str] = ..., quantity: _Optional[str] = ..., price: _Optional[str] = ...) -> None: ...
+    quantity: int
+    def __init__(self, name: _Optional[str] = ..., quantity: _Optional[int] = ...) -> None: ...
 
 class UserId(_message.Message):
     __slots__ = ("user_id",)
@@ -38,16 +34,14 @@ class ShippingAddress(_message.Message):
     def __init__(self, street: _Optional[str] = ..., city: _Optional[str] = ..., state: _Optional[str] = ..., zip: _Optional[str] = ..., country: _Optional[str] = ...) -> None: ...
 
 class PaymentDetails(_message.Message):
-    __slots__ = ("number", "expiration_date", "cvv", "cardholder_name")
+    __slots__ = ("number", "expiration_date", "cvv")
     NUMBER_FIELD_NUMBER: _ClassVar[int]
     EXPIRATION_DATE_FIELD_NUMBER: _ClassVar[int]
     CVV_FIELD_NUMBER: _ClassVar[int]
-    CARDHOLDER_NAME_FIELD_NUMBER: _ClassVar[int]
     number: str
     expiration_date: str
     cvv: str
-    cardholder_name: str
-    def __init__(self, number: _Optional[str] = ..., expiration_date: _Optional[str] = ..., cvv: _Optional[str] = ..., cardholder_name: _Optional[str] = ...) -> None: ...
+    def __init__(self, number: _Optional[str] = ..., expiration_date: _Optional[str] = ..., cvv: _Optional[str] = ...) -> None: ...
 
 class TransactionRequest(_message.Message):
     __slots__ = ("items", "user_id", "shipping_address", "payment_details")

@@ -7,10 +7,8 @@ service TransactionVerificationService {
 }
 
 message Item {
-    string item_id = 1;
-    string name = 2;
-    string quantity = 3;
-    string price = 4;
+    string name = 1;
+    int32 quantity = 2;
 }
 
 message UserId {
@@ -29,7 +27,6 @@ message PaymentDetails {
     string number = 1;
     string expiration_date = 2;
     string cvv = 3;
-    string cardholder_name = 4;
 }
 
 message TransactionRequest {
