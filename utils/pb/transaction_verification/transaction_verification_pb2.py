@@ -14,25 +14,25 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1etransaction_verification.proto\x12\x05hello\"F\n\x04Item\x12\x0f\n\x07item_id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x10\n\x08quantity\x18\x03 \x01(\t\x12\r\n\x05price\x18\x04 \x01(\t\"\x19\n\x06UserId\x12\x0f\n\x07user_id\x18\x01 \x01(\t\"\\\n\x0fShippingAddress\x12\x0e\n\x06street\x18\x01 \x01(\t\x12\x0c\n\x04\x63ity\x18\x02 \x01(\t\x12\r\n\x05state\x18\x03 \x01(\t\x12\x0b\n\x03zip\x18\x04 \x01(\t\x12\x0f\n\x07\x63ountry\x18\x05 \x01(\t\"_\n\x0ePaymentDetails\x12\x0e\n\x06number\x18\x01 \x01(\t\x12\x17\n\x0f\x65xpiration_date\x18\x02 \x01(\t\x12\x0b\n\x03\x63vv\x18\x03 \x01(\t\x12\x17\n\x0f\x63\x61rdholder_name\x18\x04 \x01(\t\"\xb2\x01\n\x12TransactionRequest\x12\x1a\n\x05items\x18\x01 \x03(\x0b\x32\x0b.hello.Item\x12\x1e\n\x07user_id\x18\x02 \x01(\x0b\x32\r.hello.UserId\x12\x30\n\x10shipping_address\x18\x03 \x01(\x0b\x32\x16.hello.ShippingAddress\x12.\n\x0fpayment_details\x18\x04 \x01(\x0b\x32\x15.hello.PaymentDetails\"8\n\x13TransactionResponse\x12\x10\n\x08is_valid\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t2l\n\x1eTransactionVerificationService\x12J\n\x11VerifyTransaction\x12\x19.hello.TransactionRequest\x1a\x1a.hello.TransactionResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1etransaction_verification.proto\x12\x18transaction.verification\"&\n\x04Item\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x10\n\x08quantity\x18\x02 \x01(\x05\"\x19\n\x06UserId\x12\x0f\n\x07user_id\x18\x01 \x01(\t\"\\\n\x0fShippingAddress\x12\x0e\n\x06street\x18\x01 \x01(\t\x12\x0c\n\x04\x63ity\x18\x02 \x01(\t\x12\r\n\x05state\x18\x03 \x01(\t\x12\x0b\n\x03zip\x18\x04 \x01(\t\x12\x0f\n\x07\x63ountry\x18\x05 \x01(\t\"F\n\x0ePaymentDetails\x12\x0e\n\x06number\x18\x01 \x01(\t\x12\x17\n\x0f\x65xpiration_date\x18\x02 \x01(\t\x12\x0b\n\x03\x63vv\x18\x03 \x01(\t\"\xfe\x01\n\x12TransactionRequest\x12-\n\x05items\x18\x01 \x03(\x0b\x32\x1e.transaction.verification.Item\x12\x31\n\x07user_id\x18\x02 \x01(\x0b\x32 .transaction.verification.UserId\x12\x43\n\x10shipping_address\x18\x03 \x01(\x0b\x32).transaction.verification.ShippingAddress\x12\x41\n\x0fpayment_details\x18\x04 \x01(\x0b\x32(.transaction.verification.PaymentDetails\"8\n\x13TransactionResponse\x12\x10\n\x08is_valid\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t2\x92\x01\n\x1eTransactionVerificationService\x12p\n\x11VerifyTransaction\x12,.transaction.verification.TransactionRequest\x1a-.transaction.verification.TransactionResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'transaction_verification_pb2', _globals)
 if _descriptor._USE_C_DESCRIPTORS == False:
   DESCRIPTOR._options = None
-  _globals['_ITEM']._serialized_start=41
-  _globals['_ITEM']._serialized_end=111
-  _globals['_USERID']._serialized_start=113
-  _globals['_USERID']._serialized_end=138
-  _globals['_SHIPPINGADDRESS']._serialized_start=140
-  _globals['_SHIPPINGADDRESS']._serialized_end=232
-  _globals['_PAYMENTDETAILS']._serialized_start=234
-  _globals['_PAYMENTDETAILS']._serialized_end=329
-  _globals['_TRANSACTIONREQUEST']._serialized_start=332
-  _globals['_TRANSACTIONREQUEST']._serialized_end=510
-  _globals['_TRANSACTIONRESPONSE']._serialized_start=512
-  _globals['_TRANSACTIONRESPONSE']._serialized_end=568
-  _globals['_TRANSACTIONVERIFICATIONSERVICE']._serialized_start=570
-  _globals['_TRANSACTIONVERIFICATIONSERVICE']._serialized_end=678
+  _globals['_ITEM']._serialized_start=60
+  _globals['_ITEM']._serialized_end=98
+  _globals['_USERID']._serialized_start=100
+  _globals['_USERID']._serialized_end=125
+  _globals['_SHIPPINGADDRESS']._serialized_start=127
+  _globals['_SHIPPINGADDRESS']._serialized_end=219
+  _globals['_PAYMENTDETAILS']._serialized_start=221
+  _globals['_PAYMENTDETAILS']._serialized_end=291
+  _globals['_TRANSACTIONREQUEST']._serialized_start=294
+  _globals['_TRANSACTIONREQUEST']._serialized_end=548
+  _globals['_TRANSACTIONRESPONSE']._serialized_start=550
+  _globals['_TRANSACTIONRESPONSE']._serialized_end=606
+  _globals['_TRANSACTIONVERIFICATIONSERVICE']._serialized_start=609
+  _globals['_TRANSACTIONVERIFICATIONSERVICE']._serialized_end=755
 # @@protoc_insertion_point(module_scope)
