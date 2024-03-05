@@ -197,10 +197,15 @@ def checkout():
 
     # Create a ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=3) as executor:
-        # Submit tasks to executor
-        executor.submit(process_checkout, convert_to_verify_transaction_request(request_data))
-        executor.submit(perform_fraud_detection, convert_to_detect_fraud_request(request_data))
-        executor.submit(fetch_suggestions, request_data)
+        # Submit tasks to executor and store Future objects
+        checkout_future = executor.submit(process_checkout, convert_to_verify_transaction_request(request_data))
+        fraud_detection_future = executor.submit(perform_fraud_detection, convert_to_detect_fraud_request(request_data))
+        suggestions_future = executor.submit(fetch_suggestions, request_data)
+        
+        # Wait for the futures to complete and get the results
+        checkout_result = checkout_future.result()
+        fraud_detection_result = fraud_detection_future.result()
+        suggestions_result = suggestions_future.result()
 
     # Dummy response for now
     response_data = {'message': 'Checkout processing started in parallel'}
