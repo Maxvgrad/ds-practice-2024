@@ -30,7 +30,7 @@ def verify_transaction(transaction_data):
 def is_valid_credit_card(credit_card_number):
     # Implement credit card validation logic (e.g., using regex or a library)
     # Return True if the credit card number is valid, False otherwise
-    pass
+    return True
 
 # Create a class for the TransactionVerification service
 class TransactionVerificationService(transaction_verification_grpc.TransactionVerificationServiceServicer):
