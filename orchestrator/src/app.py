@@ -1,5 +1,7 @@
 import sys
 import os
+from concurrent.futures import ThreadPoolExecutor
+from threading import Thread
 
 # This set of lines are needed to import the gRPC stubs.
 # The path of the stubs is relative to the current file, or absolute inside the container.
@@ -27,6 +29,54 @@ def greet(name='you'):
         # Call the service through the stub object.
         response = stub.SayHello(fraud_detection.HelloRequest(name=name))
     return response.greeting
+
+# Function to process checkout
+def process_checkout(request_data):
+    try:
+        # Call the transaction verification gRPC service
+        verify_transaction_response = verify_transaction(request_data)
+    except grpc.RpcError as e:
+        # Handle gRPC errors, such as connection issues
+        print(f"RPC failed with code {e.code()}: {e.details()}")
+        return jsonify({'error': 'Failed to perform transaction verification'}), 500
+    
+    print(f"Transaction verification response: {verify_transaction_response.is_valid}, reason: {verify_transaction_response.message}")
+    
+    # Process verification response and handle checkout accordingly
+    if verify_transaction_response.is_valid:
+        # If transaction is valid, proceed with checkout process
+        # Dummy response following the provided YAML specification for the bookstore
+        order_status_response = {
+            'orderId': '12345',
+            'status': 'Order Approved',
+            'suggestedBooks': [
+                {'bookId': '123', 'title': 'Dummy Book 1', 'author': 'Author 1'},
+                {'bookId': '456', 'title': 'Dummy Book 2', 'author': 'Author 2'}
+            ]
+        }
+        #response_data = {'message': 'Checkout processed successfully'}
+    else:
+        # If transaction is invalid, handle accordingly
+        #handle_invalid_transaction() # Could implement something different?
+        # Dummy response for now
+        order_status_response = {'error': 'Invalid transaction'}
+    return order_status_response
+
+# Function to perform fraud detection
+def perform_fraud_detection(request_data):
+    try:
+        detect_fraud_response = detect_fraud(request_data)
+    except grpc.RpcError as e:
+        print(f"RPC failed with code {e.code()}: {e.details()}")
+        return jsonify({'error': 'Failed to perform fraud detection'}), 500
+
+    print(f"Fraud detection response isFraud: {detect_fraud_response.isFraud}, reason: {detect_fraud_response.reason}")
+    return detect_fraud_response
+
+# Function to fetch suggestions
+def fetch_suggestions(request_data):
+    # Fetch suggestions logic here
+    pass
 
 def detect_fraud(request):
     # Establish a connection with the fraud-detection gRPC service.
@@ -84,69 +134,6 @@ def verify_transaction(request):
         response = stub.VerifyTransaction(request)
     return response
 
-# Define a GET endpoint.
-@app.route('/', methods=['GET'])
-def index():
-    """
-    Responds with 'Hello, [name]' when a GET request is made to '/' endpoint.
-    """
-    # Test the fraud-detection gRPC service.
-    response = greet(name='orchestrator')
-    # Return the response.
-    return response
-
-@app.route('/checkout', methods=['POST'])
-def checkout():
-    """
-    Responds with a JSON object containing the order ID, status, and suggested books.
-    """
-    # Print request object data
-    print("Request Data:", request.json)
-    
-    detect_fraud_request = convert_to_detect_fraud_request(request.json)
-    
-    try:
-        detect_fraud_response = detect_fraud(detect_fraud_request)
-    except grpc.RpcError as e:
-        print(f"RPC failed with code {e.code()}: {e.details()}")
-        return jsonify({'error': 'Failed to perform fraud detection'}), 500
-
-    print(f"Fraud detection response isFraud: {detect_fraud_response.isFraud}, reason: {detect_fraud_response.reason}")
-    
-    verify_transaction_request = convert_to_verify_transaction_request(request.json)
-    
-    try:
-        # Call the transaction verification gRPC service
-        verify_transaction_response = verify_transaction(verify_transaction_request)
-    except grpc.RpcError as e:
-        # Handle gRPC errors, such as connection issues
-        print(f"RPC failed with code {e.code()}: {e.details()}")
-        return jsonify({'error': 'Failed to perform transaction verification'}), 500
-    
-    print(f"Transaction verification response: {verify_transaction_response.is_valid}, reason: {verify_transaction_response.message}")
-    
-    # Process verification response and handle checkout accordingly
-    if verify_transaction_response.is_valid:
-        # If transaction is valid, proceed with checkout process
-        # Dummy response following the provided YAML specification for the bookstore
-        order_status_response = {
-            'orderId': '12345',
-            'status': 'Order Approved',
-            'suggestedBooks': [
-                {'bookId': '123', 'title': 'Dummy Book 1', 'author': 'Author 1'},
-                {'bookId': '456', 'title': 'Dummy Book 2', 'author': 'Author 2'}
-            ]
-        }
-        #response_data = {'message': 'Checkout processed successfully'}
-    else:
-        # If transaction is invalid, handle accordingly
-        #handle_invalid_transaction() # Could implement something different?
-        # Dummy response for now
-        order_status_response = {'error': 'Invalid transaction'}
-
-    return order_status_response
-
-
 def convert_to_detect_fraud_request(json_data):
     return fraud_detection.DetectFraudRequest(
         user=fraud_detection.User(
@@ -187,6 +174,38 @@ def convert_to_detect_fraud_request(json_data):
         referrer=json_data['referrer'],
         deviceLanguage=json_data['deviceLanguage']
     )
+
+# Define a GET endpoint.
+@app.route('/', methods=['GET'])
+def index():
+    """
+    Responds with 'Hello, [name]' when a GET request is made to '/' endpoint.
+    """
+    # Test the fraud-detection gRPC service.
+    response = greet(name='orchestrator')
+    # Return the response.
+    return response
+
+@app.route('/checkout', methods=['POST'])
+def checkout():
+    """
+    Responds with a JSON object containing the order ID, status, and suggested books.
+    """
+    # Print request object data
+    print("Request Data:", request.json)
+    request_data = request.jsony
+
+    # Create a ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        # Submit tasks to executor
+        executor.submit(process_checkout, convert_to_verify_transaction_request(request_data))
+        executor.submit(perform_fraud_detection, convert_to_detect_fraud_request(request_data))
+        executor.submit(fetch_suggestions, request_data)
+
+    # Dummy response for now
+    response_data = {'message': 'Checkout processing started in parallel'}
+
+    return jsonify(response_data)
 
 if __name__ == '__main__':
     # Run the app in debug mode to enable hot reloading.
