@@ -19,6 +19,13 @@ sys.path.insert(0, utils_path)
 import transaction_verification_pb2 as transaction_verification
 import transaction_verification_pb2_grpc as transaction_verification_grpc
 
+# Import the suggestions gRPC stubs
+FILE = __file__ if '__file__' in globals() else os.getenv("PYTHONFILE", "")
+utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/suggestions'))
+sys.path.insert(0, utils_path)
+import suggestions_pb2 as suggestions
+import suggestions_pb2_grpc as suggestions_grpc
+
 import grpc
 
 def greet(name='you'):
@@ -75,8 +82,14 @@ def perform_fraud_detection(request_data):
 
 # Function to fetch suggestions
 def fetch_suggestions(request_data):
-    # Fetch suggestions logic here
-    pass
+    try:
+        calculate_suggestions_response = calculate_suggestions(calculate_suggestions_request)
+    except grpc.RpcError as e:
+        print(f"RPC failed with code {e.code()}: {e.details()}")
+        return jsonify({'error': 'Failed to perform fraud detection'}), 500
+
+    print(f"Calculate suggestions response: {calculate_suggestions_response}")
+    return calculate_suggestions_response
 
 def detect_fraud(request):
     # Establish a connection with the fraud-detection gRPC service.
@@ -134,6 +147,15 @@ def verify_transaction(request):
         response = stub.VerifyTransaction(request)
     return response
 
+
+def calculate_suggestions(request):
+    with grpc.insecure_channel('suggestions:50053') as channel:
+        stub = suggestions_grpc.SuggestionsServiceStub(channel)
+        # Call the service through the stub object.
+        response = stub.CalculateSuggestions(request)
+    return response
+    
+   
 def convert_to_detect_fraud_request(json_data):
     return fraud_detection.DetectFraudRequest(
         user=fraud_detection.User(
@@ -174,6 +196,50 @@ def convert_to_detect_fraud_request(json_data):
         referrer=json_data['referrer'],
         deviceLanguage=json_data['deviceLanguage']
     )
+  
+def convert_to_calculate_suggestions_request(json_data):
+    # Create CalculateSuggestionsRequest and populate its fields from json_data
+    request = suggestions.CalculateSuggestionsRequest(
+        user=suggestions.User(
+            name=json_data['user']['name'],
+            contact=json_data['user']['contact']
+        ),
+        credit_card=suggestions.CreditCard(
+            number=json_data['creditCard']['number'],
+            expiration_date=json_data['creditCard']['expirationDate'],
+            cvv=json_data['creditCard']['cvv']
+        ),
+        user_comment=json_data['userComment'],
+        items=[suggestions.Item(name=item['name'], quantity=item['quantity']) for item in json_data['items']],
+        discount_code=json_data['discountCode'],
+        shipping_method=json_data['shippingMethod'],
+        gift_message=json_data['giftMessage'],
+        billing_address=suggestions.Address(
+            street=json_data['billingAddress']['street'],
+            city=json_data['billingAddress']['city'],
+            state=json_data['billingAddress']['state'],
+            zip=json_data['billingAddress']['zip'],
+            country=json_data['billingAddress']['country']
+        ),
+        gift_wrapping=json_data['giftWrapping'],
+        terms_and_conditions_accepted=json_data['termsAndConditionsAccepted'],
+        notification_preferences=json_data['notificationPreferences'],
+        device=suggestions.Device(
+            type=json_data['device']['type'],
+            model=json_data['device']['model'],
+            os=json_data['device']['os']
+        ),
+        browser=suggestions.Browser(
+            name=json_data['browser']['name'],
+            version=json_data['browser']['version']
+        ),
+        app_version=json_data['appVersion'],
+        screen_resolution=json_data['screenResolution'],
+        referrer=json_data['referrer'],
+        device_language=json_data['deviceLanguage']
+    )
+
+    return request
 
 # Define a GET endpoint.
 @app.route('/', methods=['GET'])
@@ -200,7 +266,7 @@ def checkout():
         # Submit tasks to executor and store Future objects
         checkout_future = executor.submit(process_checkout, convert_to_verify_transaction_request(request_data))
         fraud_detection_future = executor.submit(perform_fraud_detection, convert_to_detect_fraud_request(request_data))
-        suggestions_future = executor.submit(fetch_suggestions, request_data)
+        suggestions_future = executor.submit(fetch_suggestions, convert_to_calculate_suggestions_request(request_data))
         
         # Wait for the futures to complete and get the results
         checkout_result = checkout_future.result()
