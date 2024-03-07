@@ -1,5 +1,6 @@
 import sys
 import os
+import logging
 import grpc
 from concurrent import futures
 
@@ -9,6 +10,8 @@ utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/transaction_v
 sys.path.insert(0, utils_path)
 import transaction_verification_pb2 as transaction_verification
 import transaction_verification_pb2_grpc as transaction_verification_grpc
+
+logger = logging.getLogger('transaction_verification')
 
 # Define the transaction verification logic
 def verify_transaction(transaction_data):
@@ -35,6 +38,7 @@ def is_valid_credit_card(credit_card_number):
 # Create a class for the TransactionVerification service
 class TransactionVerificationService(transaction_verification_grpc.TransactionVerificationServiceServicer):
     def VerifyTransaction(self, request, context):
+        logger.info("user_id=%s", request.user_id)
         # Extract transaction data from the gRPC request
         transaction_data = {
             'items': request.items,
@@ -48,6 +52,7 @@ class TransactionVerificationService(transaction_verification_grpc.TransactionVe
         response = transaction_verification.TransactionResponse()
         response.is_valid = is_valid
         response.message = message
+        logger.info("is_valid=%s", response.is_valid)
         return response
 
 # Define the serve function to start the gRPC server
@@ -61,10 +66,15 @@ def serve():
     server.add_insecure_port("[::]:" + port)
     # Start the server
     server.start()
-    print("Transaction Verification Server started. Listening on port 50052.")
+    logger.info("Transaction Verification Server started. Listening on port 50052.")
     # Keep the thread alive
     server.wait_for_termination()
 
 # Entry point of the script
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                        filemode='a',
+                        encoding='utf-8'
+                        )
     serve()

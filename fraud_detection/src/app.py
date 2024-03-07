@@ -1,5 +1,6 @@
 import sys
 import os
+import logging
 
 # This set of lines are needed to import the gRPC stubs.
 # The path of the stubs is relative to the current file, or absolute inside the container.
@@ -13,6 +14,8 @@ import fraud_detection_pb2_grpc as fraud_detection_grpc
 import grpc
 from concurrent import futures
 
+logger = logging.getLogger('fraud_detection')
+
 # Create a class to define the server functions, derived from
 # fraud_detection_pb2_grpc.HelloServiceServicer
 class HelloService(fraud_detection_grpc.HelloServiceServicer):
@@ -23,16 +26,20 @@ class HelloService(fraud_detection_grpc.HelloServiceServicer):
         # Set the greeting field of the response object
         response.greeting = "Hello, " + request.name
         # Print the greeting message
-        print(response.greeting)
+        logger.info("Response greeting: %s", response.greeting)
         # Return the response object
         return response
 
     def DetectFraud(self, request, context):
-        print(request.user)
+        logger.info("device=%s browser=%s appVersion=%s screenResolution=%s referrer=%s deviceLanguage=%s",
+                     request.device, request.browser, request.appVersion, request.screenResolution,
+                     request.referrer, request.deviceLanguage)
         response = fraud_detection.DetectFraudResponse()
         response.isFraud = False
         response.reason = "No fraud"
+        logger.info("isFraud=%s", response.isFraud)
         return response
+
 
 def serve():
     # Create a gRPC server
@@ -44,9 +51,15 @@ def serve():
     server.add_insecure_port("[::]:" + port)
     # Start the server
     server.start()
-    print("Server started. Listening on port 50051.")
+    logger.info("Server started. Listening on port 50051.")
     # Keep thread alive
     server.wait_for_termination()
 
+
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                        filemode='a',
+                        encoding='utf-8'
+                        )
     serve()
