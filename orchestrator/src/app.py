@@ -2,6 +2,7 @@ import sys
 import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from logging.config import dictConfig
 
 # This set of lines are needed to import the gRPC stubs.
 # The path of the stubs is relative to the current file, or absolute inside the container.
@@ -40,6 +41,22 @@ app = Flask(__name__)
 # Enable CORS for the app.
 CORS(app)
 
+
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi']
+    }
+})
 
 def greet(name='you'):
     # Establish a connection with the fraud-detection gRPC service.
@@ -208,26 +225,44 @@ def checkout():
     """
     Responds with a JSON object containing the order ID, status, and suggested books.
     """
-    print("Request Data:", request.json)
     request_data = request.json
+    app.logger.info(
+        'device=type=%s, model=%s, os=%s, browser=name=%s, version=%s, appVersion=%s, screenResolution=%s, '
+        'referrer=%s, deviceLanguage=%s',
+        request_data['device']['type'],
+        request_data['device']['model'],
+        request_data['device']['os'],
+        request_data['browser']['name'],
+        request_data['browser']['version'],
+        request_data['appVersion'],
+        request_data['screenResolution'],
+        request_data['referrer'],
+        request_data['deviceLanguage']
+        )
 
     with ThreadPoolExecutor(max_workers=3) as executor:
-        verify_transaction_future = executor.submit(verify_transaction, convert_to_verify_transaction_request(request_data))
+        verify_transaction_future = executor.submit(verify_transaction,
+                                                    convert_to_verify_transaction_request(request_data))
         detect_fraud_future = executor.submit(detect_fraud, convert_to_detect_fraud_request(request_data))
-        calculate_suggestions_future = executor.submit(calculate_suggestions, convert_to_calculate_suggestions_request(request_data))
-        
+        calculate_suggestions_future = executor.submit(calculate_suggestions,
+                                                       convert_to_calculate_suggestions_request(request_data))
+
         verify_transaction_result = verify_transaction_future.result()
         detect_fraud_result = detect_fraud_future.result()
         calculate_suggestions_result = calculate_suggestions_future.result()
 
     if not verify_transaction_result.is_valid:
+        app.logger.info('Transaction invalid. message=%s', verify_transaction_result.message)
         return jsonify(
-            {'error': 'Transaction unverified. Please check your transaction details and try again.'}), 400
+            {'error': f'Transaction unverified. Message {verify_transaction_result.message}. '
+                      f'Please check your transaction details and try again.'}), 400
 
     if detect_fraud_result.isFraud:
+        app.logger.info('Fraud is detected. reason=%s', detect_fraud_result.reason)
         return jsonify(
-            {'error': 'Fraudulent transaction detected. Please contact customer support for further assistance.'}), 400
+            {'error': 'Your payment cannot be processed. Please contact customer support for further assistance.'}), 400
 
+    app.logger.info('Suggested books size=%s', len(calculate_suggestions_result.suggested_books))
     suggested_books_list = [
         {'bookId': book.book_id, 'title': book.title, 'author': book.author}
         for book in calculate_suggestions_result.suggested_books
