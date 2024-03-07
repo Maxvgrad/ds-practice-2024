@@ -3,6 +3,7 @@ import os
 import logging
 import grpc
 from concurrent import futures
+from datetime import datetime
 
 # Import gRPC stubs
 FILE = __file__ if '__file__' in globals() else os.getenv("PYTHONFILE", "")
@@ -13,29 +14,22 @@ import transaction_verification_pb2_grpc as transaction_verification_grpc
 
 logger = logging.getLogger('transaction_verification')
 
-# Define the transaction verification logic
+
 def verify_transaction(transaction_data):
-    # Check if the list of items is not empty
     if not transaction_data.get('items'):
         return False, "No items in the transaction"
 
-    # Check if required user data is filled-in
     if not all(transaction_data.get(field) for field in ['user_id', 'shipping_address', 'payment_details']):
         return False, "Missing user data"
-    # Check if the credit card format is correct (you can use a regex or a library for this)
-    if not is_valid_credit_card(transaction_data['payment_details'].number):
-        return False, "Invalid credit card format"
-    # Implement your transaction verification logic here
-    # This could include checks for non-empty items list, required user data, credit card format, etc.
-    # Return a boolean indicating whether the transaction is valid, along with a message
-    return True, "Transaction is valid"
 
-def is_valid_credit_card(credit_card_number):
-    # Implement credit card validation logic (e.g., using regex or a library)
-    # Return True if the credit card number is valid, False otherwise
-    return True
+    is_valid, reason = validate_card(
+        card_number=transaction_data['payment_details'].number,
+        expiration_date=transaction_data['payment_details'].expiration_date,
+        cvv=transaction_data['payment_details'].cvv
+    )
+    return is_valid, reason
 
-# Create a class for the TransactionVerification service
+
 class TransactionVerificationService(transaction_verification_grpc.TransactionVerificationServiceServicer):
     def VerifyTransaction(self, request, context):
         logger.info("user_id=%s", request.user_id)
@@ -54,6 +48,38 @@ class TransactionVerificationService(transaction_verification_grpc.TransactionVe
         response.message = message
         logger.info("is_valid=%s", response.is_valid)
         return response
+
+
+def luhn_checksum(card_number):
+    """Check if the card number passes the Luhn algorithm."""
+    def digits_of(n):
+        return [int(d) for d in str(n)]
+    digits = digits_of(card_number)
+    odd_digits = digits[-1::-2]
+    even_digits = digits[-2::-2]
+    checksum = sum(odd_digits)
+    for d in even_digits:
+        checksum += sum(digits_of(d*2))
+    return checksum % 10 == 0
+
+
+def validate_card(card_number, expiration_date, cvv):
+    """Validate credit card details."""
+    if not (isinstance(card_number, str) and card_number.isdigit() and len(card_number) == 16 and luhn_checksum(card_number)):
+        return False, "Invalid card number."
+
+    try:
+        exp_date = datetime.strptime(expiration_date, "%m/%y")
+        if exp_date < datetime.now():
+            return False, "Card expired."
+    except ValueError:
+        return False, "Invalid expiration date format."
+
+    if not (isinstance(cvv, str) and cvv.isdigit() and len(cvv) in [3, 4]):
+        return False, "Invalid CVV."
+
+    return True, "Card details valid."
+
 
 # Define the serve function to start the gRPC server
 def serve():

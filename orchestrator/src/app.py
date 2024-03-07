@@ -1,5 +1,8 @@
 import sys
 import os
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+from logging.config import dictConfig
 
 # This set of lines are needed to import the gRPC stubs.
 # The path of the stubs is relative to the current file, or absolute inside the container.
@@ -26,24 +29,6 @@ import suggestions_pb2_grpc as suggestions_grpc
 
 import grpc
 
-def greet(name='you'):
-    # Establish a connection with the fraud-detection gRPC service.
-    with grpc.insecure_channel('fraud_detection:50051') as channel:
-        # Create a stub object.
-        stub = fraud_detection_grpc.HelloServiceStub(channel)
-        # Call the service through the stub object.
-        response = stub.SayHello(fraud_detection.HelloRequest(name=name))
-    return response.greeting
-
-def detect_fraud(request):
-    # Establish a connection with the fraud-detection gRPC service.
-    with grpc.insecure_channel('fraud_detection:50051') as channel:
-        # Create a stub object.
-        stub = fraud_detection_grpc.HelloServiceStub(channel)
-        # Call the service through the stub object.
-        response = stub.DetectFraud(request)
-    return response
-
 # Import Flask.
 # Flask is a web framework for Python.
 # It allows you to build a web application quickly.
@@ -56,35 +41,43 @@ app = Flask(__name__)
 # Enable CORS for the app.
 CORS(app)
 
-# Function to convert JSON data to gRPC request for transaction verification
-def convert_to_verify_transaction_request(json_data):
-    # Extract data from JSON and construct a TransactionRequest object
-    transaction_request = transaction_verification.TransactionRequest()
 
-    # Iterate over the JSON data and populate the fields of the TransactionRequest object
-    for item_data in json_data['items']:
-        item = transaction_request.items.add()
-        item.name = item_data['name']
-        item.quantity = item_data['quantity']
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi']
+    }
+})
 
-    # user_id field
-    transaction_request.user_id.user_id = json_data.get('user_id', '-1') # TODO: user_id is missing in request
+def greet(name='you'):
+    # Establish a connection with the fraud-detection gRPC service.
+    with grpc.insecure_channel('fraud_detection:50051') as channel:
+        # Create a stub object.
+        stub = fraud_detection_grpc.HelloServiceStub(channel)
+        # Call the service through the stub object.
+        response = stub.SayHello(fraud_detection.HelloRequest(name=name))
+    return response.greeting
 
-    # shipping_address field
-    transaction_request.shipping_address.street = json_data['billingAddress']['street']
-    transaction_request.shipping_address.city = json_data['billingAddress']['city']
-    transaction_request.shipping_address.state = json_data['billingAddress']['state']
-    transaction_request.shipping_address.zip = json_data['billingAddress']['zip']
-    transaction_request.shipping_address.country = json_data['billingAddress']['country']
 
-    # payment_details field
-    transaction_request.payment_details.number = json_data['creditCard']['number']
-    transaction_request.payment_details.expiration_date = json_data['creditCard']['expirationDate']
-    transaction_request.payment_details.cvv = json_data['creditCard']['cvv']
+def detect_fraud(request):
+    # Establish a connection with the fraud-detection gRPC service.
+    with grpc.insecure_channel('fraud_detection:50051') as channel:
+        # Create a stub object.
+        stub = fraud_detection_grpc.HelloServiceStub(channel)
+        # Call the service through the stub object.
+        response = stub.DetectFraud(request)
+    return response
 
-    return transaction_request
 
-# Function to call the transaction verification gRPC service
 def verify_transaction(request):
     with grpc.insecure_channel('transaction_verification:50052') as channel:
         stub = transaction_verification_grpc.TransactionVerificationServiceStub(channel)
@@ -98,81 +91,8 @@ def calculate_suggestions(request):
         # Call the service through the stub object.
         response = stub.CalculateSuggestions(request)
     return response
-
-# Define a GET endpoint.
-@app.route('/', methods=['GET'])
-def index():
-    """
-    Responds with 'Hello, [name]' when a GET request is made to '/' endpoint.
-    """
-    # Test the fraud-detection gRPC service.
-    response = greet(name='orchestrator')
-    # Return the response.
-    return response
-
-@app.route('/checkout', methods=['POST'])
-def checkout():
-    """
-    Responds with a JSON object containing the order ID, status, and suggested books.
-    """
-    # Print request object data
-    print("Request Data:", request.json)
     
-    detect_fraud_request = convert_to_detect_fraud_request(request.json)
-    
-    try:
-        detect_fraud_response = detect_fraud(detect_fraud_request)
-    except grpc.RpcError as e:
-        print(f"RPC failed with code {e.code()}: {e.details()}")
-        return jsonify({'error': 'Failed to perform fraud detection'}), 500
-
-    print(f"Fraud detection response isFraud: {detect_fraud_response.isFraud}, reason: {detect_fraud_response.reason}")
-
-    calculate_suggestions_request = convert_to_calculate_suggestions_request(request.json)
-
-    try:
-        calculate_suggestions_response = calculate_suggestions(calculate_suggestions_request)
-    except grpc.RpcError as e:
-        print(f"RPC failed with code {e.code()}: {e.details()}")
-        return jsonify({'error': 'Failed to perform fraud detection'}), 500
-
-    print(f"Calculate suggestions response: {calculate_suggestions_response}")
-
-    verify_transaction_request = convert_to_verify_transaction_request(request.json)
-    
-    try:
-        # Call the transaction verification gRPC service
-        verify_transaction_response = verify_transaction(verify_transaction_request)
-    except grpc.RpcError as e:
-        # Handle gRPC errors, such as connection issues
-        print(f"RPC failed with code {e.code()}: {e.details()}")
-        return jsonify({'error': 'Failed to perform transaction verification'}), 500
-    
-    print(f"Transaction verification response: {verify_transaction_response.is_valid}, reason: {verify_transaction_response.message}")
-    
-    # Process verification response and handle checkout accordingly
-    if verify_transaction_response.is_valid:
-
-        suggested_books_list = [
-            {'bookId': book.book_id, 'title': book.title, 'author': book.author}
-            for book in calculate_suggestions_response.suggested_books
-        ]
-
-        order_status_response = {
-            'orderId': '12345',
-            'status': 'Order Approved',
-            'suggestedBooks': suggested_books_list
-        }
-        #response_data = {'message': 'Checkout processed successfully'}
-    else:
-        # If transaction is invalid, handle accordingly
-        #handle_invalid_transaction() # Could implement something different?
-        # Dummy response for now
-        order_status_response = {'error': 'Invalid transaction'}
-
-    return order_status_response
-
-
+   
 def convert_to_detect_fraud_request(json_data):
     return fraud_detection.DetectFraudRequest(
         user=fraud_detection.User(
@@ -213,6 +133,34 @@ def convert_to_detect_fraud_request(json_data):
         referrer=json_data['referrer'],
         deviceLanguage=json_data['deviceLanguage']
     )
+
+
+def convert_to_verify_transaction_request(json_data):
+    # Extract data from JSON and construct a TransactionRequest object
+    transaction_request = transaction_verification.TransactionRequest()
+
+    # Iterate over the JSON data and populate the fields of the TransactionRequest object
+    for item_data in json_data['items']:
+        item = transaction_request.items.add()
+        item.name = item_data['name']
+        item.quantity = item_data['quantity']
+
+    # user_id field
+    transaction_request.user_id.user_id = json_data.get('user_id', '-1') # TODO: user_id is missing in request
+
+    # shipping_address field
+    transaction_request.shipping_address.street = json_data['billingAddress']['street']
+    transaction_request.shipping_address.city = json_data['billingAddress']['city']
+    transaction_request.shipping_address.state = json_data['billingAddress']['state']
+    transaction_request.shipping_address.zip = json_data['billingAddress']['zip']
+    transaction_request.shipping_address.country = json_data['billingAddress']['country']
+
+    # payment_details field
+    transaction_request.payment_details.number = json_data['creditCard']['number']
+    transaction_request.payment_details.expiration_date = json_data['creditCard']['expirationDate']
+    transaction_request.payment_details.cvv = json_data['creditCard']['cvv']
+
+    return transaction_request
 
 
 def convert_to_calculate_suggestions_request(json_data):
@@ -258,6 +206,73 @@ def convert_to_calculate_suggestions_request(json_data):
     )
 
     return request
+
+
+# Define a GET endpoint.
+@app.route('/', methods=['GET'])
+def index():
+    """
+    Responds with 'Hello, [name]' when a GET request is made to '/' endpoint.
+    """
+    # Test the fraud-detection gRPC service.
+    response = greet(name='orchestrator')
+    # Return the response.
+    return response
+
+
+@app.route('/checkout', methods=['POST'])
+def checkout():
+    """
+    Responds with a JSON object containing the order ID, status, and suggested books.
+    """
+    request_data = request.json
+    app.logger.info(
+        'device=type=%s, model=%s, os=%s, browser=name=%s, version=%s, appVersion=%s, screenResolution=%s, '
+        'referrer=%s, deviceLanguage=%s',
+        request_data['device']['type'],
+        request_data['device']['model'],
+        request_data['device']['os'],
+        request_data['browser']['name'],
+        request_data['browser']['version'],
+        request_data['appVersion'],
+        request_data['screenResolution'],
+        request_data['referrer'],
+        request_data['deviceLanguage']
+        )
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        verify_transaction_future = executor.submit(verify_transaction,
+                                                    convert_to_verify_transaction_request(request_data))
+        detect_fraud_future = executor.submit(detect_fraud, convert_to_detect_fraud_request(request_data))
+        calculate_suggestions_future = executor.submit(calculate_suggestions,
+                                                       convert_to_calculate_suggestions_request(request_data))
+
+        verify_transaction_result = verify_transaction_future.result()
+        detect_fraud_result = detect_fraud_future.result()
+        calculate_suggestions_result = calculate_suggestions_future.result()
+
+    if not verify_transaction_result.is_valid:
+        app.logger.info('Transaction invalid. message=%s', verify_transaction_result.message)
+        return jsonify(
+            {'error': f'Transaction unverified. Message {verify_transaction_result.message}. '
+                      f'Please check your transaction details and try again.'}), 400
+
+    if detect_fraud_result.isFraud:
+        app.logger.info('Fraud is detected. reason=%s', detect_fraud_result.reason)
+        return jsonify(
+            {'error': 'Your payment cannot be processed. Please contact customer support for further assistance.'}), 400
+
+    app.logger.info('Suggested books size=%s', len(calculate_suggestions_result.suggested_books))
+    suggested_books_list = [
+        {'bookId': book.book_id, 'title': book.title, 'author': book.author}
+        for book in calculate_suggestions_result.suggested_books
+    ]
+    response_data = {
+        'orderId': int(datetime.now().timestamp()),
+        'status': 'Order Approved',
+        'suggestedBooks': suggested_books_list
+    }
+    return jsonify(response_data)
 
 
 if __name__ == '__main__':
