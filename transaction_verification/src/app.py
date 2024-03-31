@@ -12,15 +12,22 @@ sys.path.insert(0, utils_path)
 import transaction_verification_pb2 as transaction_verification
 import transaction_verification_pb2_grpc as transaction_verification_grpc
 
+
+# Import Vector Clock Handler
+from vector_clock import VectorClockHandler
+
 logger = logging.getLogger('transaction_verification')
 
 
-def verify_transaction(transaction_data):
+def verify_transaction(transaction_data, vector_clock_handler):
     if not transaction_data.get('items'):
         return False, "No items in the transaction"
 
     if not all(transaction_data.get(field) for field in ['user_id', 'shipping_address', 'payment_details']):
         return False, "Missing user data"
+    
+    # Increment vector clock for transaction verification
+    vector_clock_handler.update_clock(transaction_data['orderId'], 'transaction-verification')
 
     is_valid, reason = validate_card(
         card_number=transaction_data['payment_details'].number,
@@ -31,6 +38,9 @@ def verify_transaction(transaction_data):
 
 
 class TransactionVerificationService(transaction_verification_grpc.TransactionVerificationServiceServicer):
+    def __init__(self, vector_clock_handler):
+        self.vector_clock_handler = vector_clock_handler
+
     def VerifyTransaction(self, request, context):
         logger.info("user_id=%s", request.user_id)
         # Extract transaction data from the gRPC request
@@ -41,7 +51,7 @@ class TransactionVerificationService(transaction_verification_grpc.TransactionVe
             'payment_details': request.payment_details
         }
         # Perform transaction verification
-        is_valid, message = verify_transaction(transaction_data)
+        is_valid, message = verify_transaction(transaction_data, self.vector_clock_handler)
         # Create a response message
         response = transaction_verification.TransactionResponse()
         response.is_valid = is_valid
@@ -83,10 +93,12 @@ def validate_card(card_number, expiration_date, cvv):
 
 # Define the serve function to start the gRPC server
 def serve():
+    # Initialize vector clock handler
+    vector_clock_handler = VectorClockHandler()
     # Create a gRPC server
     server = grpc.server(futures.ThreadPoolExecutor())
     # Add the TransactionVerification service
-    transaction_verification_grpc.add_TransactionVerificationServiceServicer_to_server(TransactionVerificationService(), server)
+    transaction_verification_grpc.add_TransactionVerificationServiceServicer_to_server(TransactionVerificationService(vector_clock_handler), server)
     # Listen on port 50052
     port = "50052"
     server.add_insecure_port("[::]:" + port)

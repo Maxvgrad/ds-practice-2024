@@ -14,11 +14,17 @@ import fraud_detection_pb2_grpc as fraud_detection_grpc
 import grpc
 from concurrent import futures
 
+# Import Vector Clock Handler
+from vector_clock import VectorClockHandler
+
 logger = logging.getLogger('fraud_detection')
 
 # Create a class to define the server functions, derived from
 # fraud_detection_pb2_grpc.HelloServiceServicer
 class HelloService(fraud_detection_grpc.HelloServiceServicer):
+    def __init__(self, vector_clock_handler):
+        self.vector_clock_handler = vector_clock_handler
+
     # Create an RPC function to say hello
     def SayHello(self, request, context):
         # Create a HelloResponse object
@@ -34,6 +40,8 @@ class HelloService(fraud_detection_grpc.HelloServiceServicer):
         logger.info("device=%s browser=%s appVersion=%s screenResolution=%s referrer=%s deviceLanguage=%s",
                      request.device, request.browser, request.appVersion, request.screenResolution,
                      request.referrer, request.deviceLanguage)
+        # Increment vector clock
+        self.vector_clock_handler.update_clock(request.orderId, 'fraud-detection')
         response = fraud_detection.DetectFraudResponse()
         response.isFraud = False
         response.reason = "No fraud"
@@ -42,10 +50,12 @@ class HelloService(fraud_detection_grpc.HelloServiceServicer):
 
 
 def serve():
+    # Initialize vector clock handler
+    vector_clock_handler = VectorClockHandler()
     # Create a gRPC server
     server = grpc.server(futures.ThreadPoolExecutor())
     # Add HelloService
-    fraud_detection_grpc.add_HelloServiceServicer_to_server(HelloService(), server)
+    fraud_detection_grpc.add_HelloServiceServicer_to_server(HelloService(vector_clock_handler), server)
     # Listen on port 50051
     port = "50051"
     server.add_insecure_port("[::]:" + port)
