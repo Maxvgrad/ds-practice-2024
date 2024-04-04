@@ -22,7 +22,7 @@ class CalculateSuggestionsResponse(_message.Message):
     def __init__(self, suggested_books: _Optional[_Iterable[_Union[Book, _Mapping]]] = ...) -> None: ...
 
 class CalculateSuggestionsRequest(_message.Message):
-    __slots__ = ("user", "credit_card", "user_comment", "items", "discount_code", "shipping_method", "gift_message", "billing_address", "gift_wrapping", "terms_and_conditions_accepted", "notification_preferences", "device", "browser", "app_version", "screen_resolution", "referrer", "device_language")
+    __slots__ = ("user", "credit_card", "user_comment", "items", "discount_code", "shipping_method", "gift_message", "billing_address", "gift_wrapping", "terms_and_conditions_accepted", "notification_preferences", "device", "browser", "app_version", "screen_resolution", "referrer", "device_language", "order_id")
     USER_FIELD_NUMBER: _ClassVar[int]
     CREDIT_CARD_FIELD_NUMBER: _ClassVar[int]
     USER_COMMENT_FIELD_NUMBER: _ClassVar[int]
@@ -40,6 +40,7 @@ class CalculateSuggestionsRequest(_message.Message):
     SCREEN_RESOLUTION_FIELD_NUMBER: _ClassVar[int]
     REFERRER_FIELD_NUMBER: _ClassVar[int]
     DEVICE_LANGUAGE_FIELD_NUMBER: _ClassVar[int]
+    ORDER_ID_FIELD_NUMBER: _ClassVar[int]
     user: User
     credit_card: CreditCard
     user_comment: str
@@ -57,7 +58,8 @@ class CalculateSuggestionsRequest(_message.Message):
     screen_resolution: str
     referrer: str
     device_language: str
-    def __init__(self, user: _Optional[_Union[User, _Mapping]] = ..., credit_card: _Optional[_Union[CreditCard, _Mapping]] = ..., user_comment: _Optional[str] = ..., items: _Optional[_Iterable[_Union[Item, _Mapping]]] = ..., discount_code: _Optional[str] = ..., shipping_method: _Optional[str] = ..., gift_message: _Optional[str] = ..., billing_address: _Optional[_Union[Address, _Mapping]] = ..., gift_wrapping: bool = ..., terms_and_conditions_accepted: bool = ..., notification_preferences: _Optional[_Iterable[str]] = ..., device: _Optional[_Union[Device, _Mapping]] = ..., browser: _Optional[_Union[Browser, _Mapping]] = ..., app_version: _Optional[str] = ..., screen_resolution: _Optional[str] = ..., referrer: _Optional[str] = ..., device_language: _Optional[str] = ...) -> None: ...
+    order_id: int
+    def __init__(self, user: _Optional[_Union[User, _Mapping]] = ..., credit_card: _Optional[_Union[CreditCard, _Mapping]] = ..., user_comment: _Optional[str] = ..., items: _Optional[_Iterable[_Union[Item, _Mapping]]] = ..., discount_code: _Optional[str] = ..., shipping_method: _Optional[str] = ..., gift_message: _Optional[str] = ..., billing_address: _Optional[_Union[Address, _Mapping]] = ..., gift_wrapping: bool = ..., terms_and_conditions_accepted: bool = ..., notification_preferences: _Optional[_Iterable[str]] = ..., device: _Optional[_Union[Device, _Mapping]] = ..., browser: _Optional[_Union[Browser, _Mapping]] = ..., app_version: _Optional[str] = ..., screen_resolution: _Optional[str] = ..., referrer: _Optional[str] = ..., device_language: _Optional[str] = ..., order_id: _Optional[int] = ...) -> None: ...
 
 class User(_message.Message):
     __slots__ = ("name", "contact")

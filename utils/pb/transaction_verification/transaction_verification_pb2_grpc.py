@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import transaction_verification_pb2 as transaction__verification__pb2
+from utils.pb.transaction_verification import transaction_verification_pb2 as utils_dot_pb_dot_transaction__verification_dot_transaction__verification__pb2
 
 
 class TransactionVerificationServiceStub(object):
@@ -16,8 +16,8 @@ class TransactionVerificationServiceStub(object):
         """
         self.VerifyTransaction = channel.unary_unary(
                 '/transaction.verification.TransactionVerificationService/VerifyTransaction',
-                request_serializer=transaction__verification__pb2.TransactionRequest.SerializeToString,
-                response_deserializer=transaction__verification__pb2.TransactionResponse.FromString,
+                request_serializer=utils_dot_pb_dot_transaction__verification_dot_transaction__verification__pb2.TransactionRequest.SerializeToString,
+                response_deserializer=utils_dot_pb_dot_transaction__verification_dot_transaction__verification__pb2.TransactionResponse.FromString,
                 )
 
 
@@ -35,8 +35,8 @@ def add_TransactionVerificationServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'VerifyTransaction': grpc.unary_unary_rpc_method_handler(
                     servicer.VerifyTransaction,
-                    request_deserializer=transaction__verification__pb2.TransactionRequest.FromString,
-                    response_serializer=transaction__verification__pb2.TransactionResponse.SerializeToString,
+                    request_deserializer=utils_dot_pb_dot_transaction__verification_dot_transaction__verification__pb2.TransactionRequest.FromString,
+                    response_serializer=utils_dot_pb_dot_transaction__verification_dot_transaction__verification__pb2.TransactionResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -60,7 +60,7 @@ class TransactionVerificationService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/transaction.verification.TransactionVerificationService/VerifyTransaction',
-            transaction__verification__pb2.TransactionRequest.SerializeToString,
-            transaction__verification__pb2.TransactionResponse.FromString,
+            utils_dot_pb_dot_transaction__verification_dot_transaction__verification__pb2.TransactionRequest.SerializeToString,
+            utils_dot_pb_dot_transaction__verification_dot_transaction__verification__pb2.TransactionResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

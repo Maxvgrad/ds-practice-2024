@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import fraud_detection_pb2 as fraud__detection__pb2
+from utils.pb.fraud_detection import fraud_detection_pb2 as utils_dot_pb_dot_fraud__detection_dot_fraud__detection__pb2
 
 
 class HelloServiceStub(object):
@@ -16,13 +16,13 @@ class HelloServiceStub(object):
         """
         self.SayHello = channel.unary_unary(
                 '/hello.HelloService/SayHello',
-                request_serializer=fraud__detection__pb2.HelloRequest.SerializeToString,
-                response_deserializer=fraud__detection__pb2.HelloResponse.FromString,
+                request_serializer=utils_dot_pb_dot_fraud__detection_dot_fraud__detection__pb2.HelloRequest.SerializeToString,
+                response_deserializer=utils_dot_pb_dot_fraud__detection_dot_fraud__detection__pb2.HelloResponse.FromString,
                 )
         self.DetectFraud = channel.unary_unary(
                 '/hello.HelloService/DetectFraud',
-                request_serializer=fraud__detection__pb2.DetectFraudRequest.SerializeToString,
-                response_deserializer=fraud__detection__pb2.DetectFraudResponse.FromString,
+                request_serializer=utils_dot_pb_dot_fraud__detection_dot_fraud__detection__pb2.DetectFraudRequest.SerializeToString,
+                response_deserializer=utils_dot_pb_dot_fraud__detection_dot_fraud__detection__pb2.DetectFraudResponse.FromString,
                 )
 
 
@@ -46,13 +46,13 @@ def add_HelloServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'SayHello': grpc.unary_unary_rpc_method_handler(
                     servicer.SayHello,
-                    request_deserializer=fraud__detection__pb2.HelloRequest.FromString,
-                    response_serializer=fraud__detection__pb2.HelloResponse.SerializeToString,
+                    request_deserializer=utils_dot_pb_dot_fraud__detection_dot_fraud__detection__pb2.HelloRequest.FromString,
+                    response_serializer=utils_dot_pb_dot_fraud__detection_dot_fraud__detection__pb2.HelloResponse.SerializeToString,
             ),
             'DetectFraud': grpc.unary_unary_rpc_method_handler(
                     servicer.DetectFraud,
-                    request_deserializer=fraud__detection__pb2.DetectFraudRequest.FromString,
-                    response_serializer=fraud__detection__pb2.DetectFraudResponse.SerializeToString,
+                    request_deserializer=utils_dot_pb_dot_fraud__detection_dot_fraud__detection__pb2.DetectFraudRequest.FromString,
+                    response_serializer=utils_dot_pb_dot_fraud__detection_dot_fraud__detection__pb2.DetectFraudResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -76,8 +76,8 @@ class HelloService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/hello.HelloService/SayHello',
-            fraud__detection__pb2.HelloRequest.SerializeToString,
-            fraud__detection__pb2.HelloResponse.FromString,
+            utils_dot_pb_dot_fraud__detection_dot_fraud__detection__pb2.HelloRequest.SerializeToString,
+            utils_dot_pb_dot_fraud__detection_dot_fraud__detection__pb2.HelloResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -93,7 +93,7 @@ class HelloService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/hello.HelloService/DetectFraud',
-            fraud__detection__pb2.DetectFraudRequest.SerializeToString,
-            fraud__detection__pb2.DetectFraudResponse.FromString,
+            utils_dot_pb_dot_fraud__detection_dot_fraud__detection__pb2.DetectFraudRequest.SerializeToString,
+            utils_dot_pb_dot_fraud__detection_dot_fraud__detection__pb2.DetectFraudResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

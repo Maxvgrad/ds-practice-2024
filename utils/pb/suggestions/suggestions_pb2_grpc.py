@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import suggestions_pb2 as suggestions__pb2
+from utils.pb.suggestions import suggestions_pb2 as utils_dot_pb_dot_suggestions_dot_suggestions__pb2
 
 
 class SuggestionsServiceStub(object):
@@ -16,8 +16,8 @@ class SuggestionsServiceStub(object):
         """
         self.CalculateSuggestions = channel.unary_unary(
                 '/suggestions.SuggestionsService/CalculateSuggestions',
-                request_serializer=suggestions__pb2.CalculateSuggestionsRequest.SerializeToString,
-                response_deserializer=suggestions__pb2.CalculateSuggestionsResponse.FromString,
+                request_serializer=utils_dot_pb_dot_suggestions_dot_suggestions__pb2.CalculateSuggestionsRequest.SerializeToString,
+                response_deserializer=utils_dot_pb_dot_suggestions_dot_suggestions__pb2.CalculateSuggestionsResponse.FromString,
                 )
 
 
@@ -35,8 +35,8 @@ def add_SuggestionsServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'CalculateSuggestions': grpc.unary_unary_rpc_method_handler(
                     servicer.CalculateSuggestions,
-                    request_deserializer=suggestions__pb2.CalculateSuggestionsRequest.FromString,
-                    response_serializer=suggestions__pb2.CalculateSuggestionsResponse.SerializeToString,
+                    request_deserializer=utils_dot_pb_dot_suggestions_dot_suggestions__pb2.CalculateSuggestionsRequest.FromString,
+                    response_serializer=utils_dot_pb_dot_suggestions_dot_suggestions__pb2.CalculateSuggestionsResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -60,7 +60,7 @@ class SuggestionsService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/suggestions.SuggestionsService/CalculateSuggestions',
-            suggestions__pb2.CalculateSuggestionsRequest.SerializeToString,
-            suggestions__pb2.CalculateSuggestionsResponse.FromString,
+            utils_dot_pb_dot_suggestions_dot_suggestions__pb2.CalculateSuggestionsRequest.SerializeToString,
+            utils_dot_pb_dot_suggestions_dot_suggestions__pb2.CalculateSuggestionsResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

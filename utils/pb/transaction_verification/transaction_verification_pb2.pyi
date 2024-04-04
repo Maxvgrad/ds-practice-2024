@@ -44,16 +44,18 @@ class PaymentDetails(_message.Message):
     def __init__(self, number: _Optional[str] = ..., expiration_date: _Optional[str] = ..., cvv: _Optional[str] = ...) -> None: ...
 
 class TransactionRequest(_message.Message):
-    __slots__ = ("items", "user_id", "shipping_address", "payment_details")
+    __slots__ = ("items", "user_id", "shipping_address", "payment_details", "order_id")
     ITEMS_FIELD_NUMBER: _ClassVar[int]
     USER_ID_FIELD_NUMBER: _ClassVar[int]
     SHIPPING_ADDRESS_FIELD_NUMBER: _ClassVar[int]
     PAYMENT_DETAILS_FIELD_NUMBER: _ClassVar[int]
+    ORDER_ID_FIELD_NUMBER: _ClassVar[int]
     items: _containers.RepeatedCompositeFieldContainer[Item]
     user_id: UserId
     shipping_address: ShippingAddress
     payment_details: PaymentDetails
-    def __init__(self, items: _Optional[_Iterable[_Union[Item, _Mapping]]] = ..., user_id: _Optional[_Union[UserId, _Mapping]] = ..., shipping_address: _Optional[_Union[ShippingAddress, _Mapping]] = ..., payment_details: _Optional[_Union[PaymentDetails, _Mapping]] = ...) -> None: ...
+    order_id: int
+    def __init__(self, items: _Optional[_Iterable[_Union[Item, _Mapping]]] = ..., user_id: _Optional[_Union[UserId, _Mapping]] = ..., shipping_address: _Optional[_Union[ShippingAddress, _Mapping]] = ..., payment_details: _Optional[_Union[PaymentDetails, _Mapping]] = ..., order_id: _Optional[int] = ...) -> None: ...
 
 class TransactionResponse(_message.Message):
     __slots__ = ("is_valid", "message")
