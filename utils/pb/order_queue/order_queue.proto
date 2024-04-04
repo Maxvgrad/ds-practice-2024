@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package order_queue;
+
+service OrderQueueService {
+  rpc EnqueueOrder(EnqueueOrderRequest) returns (EnqueueOrderResponse);
+}
+
+message EnqueueOrderResponse {
+  int32 order_id = 1;
+  bool is_success = 2;
+}
+
+message EnqueueOrderRequest {
+  int32 order_id = 1;
+  string order_type = 2; // This field indicates the type of the order
+  string payload = 3;    // Payload is a JSON string
+}

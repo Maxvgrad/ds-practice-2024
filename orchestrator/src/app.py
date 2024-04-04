@@ -3,6 +3,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from logging.config import dictConfig
+import json
 
 # This set of lines are needed to import the gRPC stubs.
 # The path of the stubs is relative to the current file, or absolute inside the container.
@@ -26,6 +27,12 @@ utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/suggestions')
 sys.path.insert(0, utils_path)
 import suggestions_pb2 as suggestions
 import suggestions_pb2_grpc as suggestions_grpc
+
+FILE = __file__ if '__file__' in globals() else os.getenv("PYTHONFILE", "")
+utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/order_queue'))
+sys.path.insert(0, utils_path)
+import order_queue_pb2 as order_queue
+import order_queue_pb2_grpc as order_queue_grpc
 
 import grpc
 
@@ -91,7 +98,22 @@ def calculate_suggestions(request):
         # Call the service through the stub object.
         response = stub.CalculateSuggestions(request)
     return response
-    
+
+
+def enqueue_order(order_id, order_type, payload):
+    """
+    Enqueue the order in the order queue service.
+    """
+    with grpc.insecure_channel('order_queue:50054') as channel:
+        stub = order_queue_grpc.OrderQueueServiceStub(channel)
+        enqueue_order_request = order_queue.EnqueueOrderRequest(
+            order_id=order_id,
+            order_type=order_type,
+            payload=payload
+        )
+        response = stub.EnqueueOrder(enqueue_order_request)
+    return response
+
    
 def convert_to_detect_fraud_request(json_data):
     return fraud_detection.DetectFraudRequest(
@@ -272,6 +294,19 @@ def checkout():
         'status': 'Order Approved',
         'suggestedBooks': suggested_books_list
     }
+
+    order_details_json = json.dumps(request_data)
+
+    enqueue_response = enqueue_order(
+        order_id=response_data['orderId'],
+        order_type="BOOK_ORDER",
+        payload=order_details_json
+    )
+    app.logger.info('enqueue order_id=%s is_success=%s', enqueue_response.order_id, enqueue_response.is_success)
+
+    if not enqueue_response.is_success:
+        return jsonify({'error': 'Failed to process your order. Please try again later.'}), 500
+
     return jsonify(response_data)
 
 
