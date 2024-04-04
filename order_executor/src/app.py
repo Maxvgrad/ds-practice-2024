@@ -16,6 +16,12 @@ sys.path.insert(0, utils_path)
 import order_executor_pb2 as order_executor
 import order_executor_pb2_grpc as order_executor_grpc
 
+FILE = __file__ if '__file__' in globals() else os.getenv("PYTHONFILE", "")
+utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/order_queue'))
+sys.path.insert(0, utils_path)
+import order_queue_pb2 as order_queue
+import order_queue_pb2_grpc as order_queue_grpc
+
 import grpc
 from concurrent import futures
 
@@ -57,7 +63,7 @@ class OrderExecutorService(order_executor_grpc.OrderExecutorServiceServicer):
 
         self.state = OrderExecutorState.HAS_TOKEN
 
-        executor.submit(self.dequeue_order, "token")
+        executor.submit(self.execute, "token")
 
         response = order_executor.PassTokenResponse()
         # logger.info("suggested_books_size=%s", len(response.suggested_books))
@@ -68,18 +74,25 @@ class OrderExecutorService(order_executor_grpc.OrderExecutorServiceServicer):
         response.state = self.state.name
         return response
 
-    def dequeue_order(self, token):
+    def execute(self, token):
         if self.state != OrderExecutorState.HAS_TOKEN:
             logger.error("Replica no has token for process token.")
             raise ValueError("Replica no has token for process token")
 
-        logger.info("Dequeue order for process.")
-        order = None # dequeue
-        time.sleep(1)  # Wait before retrying
+        logger.info("Dequeue order for processing.")
+
+        try:
+            order = dequeue_order()
+        except:
+            logger.error("Unexpected error during order de-queuing.")
+            order = None
 
         if order is not None:
             # submit processing
-            logger.info("Submit order for processing.")
+            logger.info(f"Submit order {order.order_id} type {order.order_type} for processing.")
+            time.sleep(1)
+        else:
+            time.sleep(2)
 
         self.state = OrderExecutorState.PASSING_TOKEN
         request = order_executor.PassTokenRequest()
@@ -109,7 +122,7 @@ class OrderExecutorService(order_executor_grpc.OrderExecutorServiceServicer):
         if self.state == OrderExecutorState.NO_TOKEN and self.replica_id == 0:
             self.state = OrderExecutorState.HAS_TOKEN
             with ThreadPoolExecutor(max_workers=1) as executor:
-                executor.submit(self.dequeue_order, "token")
+                executor.submit(self.execute, "token")
 
     def start_liveness_check_scheduler(self):
         schedule.every(5).seconds.do(self.liveness_check)
@@ -124,7 +137,7 @@ class OrderExecutorService(order_executor_grpc.OrderExecutorServiceServicer):
     def liveness_check(self):
         """Performs a liveness check on all replicas."""
         if self.state == OrderExecutorState.HAS_TOKEN:
-            logger.info(f"Replica has token. Skip liveness check")
+            logger.info(f"Replica has token. Skip liveness check.")
             return True
 
         for replica in self.replicas:
@@ -139,6 +152,7 @@ class OrderExecutorService(order_executor_grpc.OrderExecutorServiceServicer):
                     logger.info(f"Replica {replica.replica_id} is alive with state {response.state}.")
             except Exception as e:
                 logger.error(f"Failed to check liveness for replica {replica.replica_id}: {e}")
+
 
 def pass_token(request, replica):
     max_retries = 3  # Maximum number of retries
@@ -162,6 +176,27 @@ def pass_token(request, replica):
     # If we reach here, all retries have failed
     logger.error(f"Failed to pass token to replica {replica.replica_id} after {max_retries} attempts.")
     raise Exception(f"Failed to pass token to replica {replica.replica_id}.")
+
+
+def dequeue_order(retries=3, delay=2):
+    with grpc.insecure_channel('order_queue:50054') as channel:
+        stub = order_queue_grpc.OrderQueueServiceStub(channel)
+        request = order_queue.DequeueOrderRequest()
+
+        for attempt in range(retries):
+            try:
+                response = stub.DequeueOrder(request)
+                return response
+            except grpc.RpcError as e:
+                if e.code() == grpc.StatusCode.NOT_FOUND:
+                    logger.info("Order queue is empty.")
+                    return None
+                else:
+                    logger.error(f"Error dequeueing. Attempt {attempt + 1} of {retries}")
+                    if attempt < retries - 1:  # Don't sleep after the last attempt
+                        time.sleep(delay)
+        logger.error("All retry attempts failed.")
+        raise grpc.RpcError("All retry attempts failed.")
 
 
 def serve(replica_id, replicas):

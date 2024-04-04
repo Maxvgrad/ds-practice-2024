@@ -4,6 +4,16 @@ package order_queue;
 
 service OrderQueueService {
   rpc EnqueueOrder(EnqueueOrderRequest) returns (EnqueueOrderResponse);
+  rpc DequeueOrder(DequeueOrderRequest) returns (DequeueOrderResponse);
+}
+
+message DequeueOrderResponse {
+  int32 order_id = 1;
+  string order_type = 2;
+  string payload = 3;
+}
+
+message DequeueOrderRequest {
 }
 
 message EnqueueOrderResponse {
@@ -12,7 +22,8 @@ message EnqueueOrderResponse {
 }
 
 message EnqueueOrderRequest {
-  int32 order_id = 1;
-  string order_type = 2; // This field indicates the type of the order
-  string payload = 3;    // Payload is a JSON string
+  int32 priority = 1;
+  int32 order_id = 2;
+  string order_type = 3;
+  string payload = 4;
 }
