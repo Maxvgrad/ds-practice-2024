@@ -100,18 +100,13 @@ def calculate_suggestions(request):
     return response
 
 
-def enqueue_order(order_id, order_type, payload):
+def enqueue_order(request):
     """
     Enqueue the order in the order queue service.
     """
     with grpc.insecure_channel('order_queue:50054') as channel:
         stub = order_queue_grpc.OrderQueueServiceStub(channel)
-        enqueue_order_request = order_queue.EnqueueOrderRequest(
-            order_id=order_id,
-            order_type=order_type,
-            payload=payload
-        )
-        response = stub.EnqueueOrder(enqueue_order_request)
+        response = stub.EnqueueOrder(request)
     return response
 
    
@@ -230,6 +225,31 @@ def convert_to_calculate_suggestions_request(json_data):
     return request
 
 
+def calculate_order_priority(json_data):
+    priority = 5  # Start with a middle priority
+
+    # Check shipping method
+    shipping_method = json_data.get('shippingMethod')
+
+    if shipping_method is not None and shipping_method.upper() == 'EXPRESS':
+        priority -= 3
+    elif shipping_method is not None and shipping_method.upper() == 'COURIER':
+        priority -= 2
+
+    # Adjust priority based on the number of items (more items, slightly higher priority)
+    items_count = sum(item['quantity'] for item in json_data.get('items', []))
+    if items_count > 5:
+        priority -= 3
+    elif items_count > 1 and items_count <= 5:
+        priority -= 1
+
+    if not json_data.get('discountCode'):
+        priority -= 1
+
+    priority = max(1, min(priority, 10))
+
+    return priority
+
 # Define a GET endpoint.
 @app.route('/', methods=['GET'])
 def index():
@@ -297,11 +317,14 @@ def checkout():
 
     order_details_json = json.dumps(request_data)
 
-    enqueue_response = enqueue_order(
+    enqueue_order_request = order_queue.EnqueueOrderRequest(
+        priority=calculate_order_priority(request_data),
         order_id=response_data['orderId'],
         order_type="BOOK_ORDER",
         payload=order_details_json
     )
+
+    enqueue_response = enqueue_order(enqueue_order_request)
     app.logger.info('enqueue order_id=%s is_success=%s', enqueue_response.order_id, enqueue_response.is_success)
 
     if not enqueue_response.is_success:

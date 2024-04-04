@@ -19,12 +19,23 @@ class OrderQueueServiceStub(object):
                 request_serializer=order__queue__pb2.EnqueueOrderRequest.SerializeToString,
                 response_deserializer=order__queue__pb2.EnqueueOrderResponse.FromString,
                 )
+        self.DequeueOrder = channel.unary_unary(
+                '/order_queue.OrderQueueService/DequeueOrder',
+                request_serializer=order__queue__pb2.DequeueOrderRequest.SerializeToString,
+                response_deserializer=order__queue__pb2.DequeueOrderResponse.FromString,
+                )
 
 
 class OrderQueueServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def EnqueueOrder(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DequeueOrder(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -37,6 +48,11 @@ def add_OrderQueueServiceServicer_to_server(servicer, server):
                     servicer.EnqueueOrder,
                     request_deserializer=order__queue__pb2.EnqueueOrderRequest.FromString,
                     response_serializer=order__queue__pb2.EnqueueOrderResponse.SerializeToString,
+            ),
+            'DequeueOrder': grpc.unary_unary_rpc_method_handler(
+                    servicer.DequeueOrder,
+                    request_deserializer=order__queue__pb2.DequeueOrderRequest.FromString,
+                    response_serializer=order__queue__pb2.DequeueOrderResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -62,5 +78,22 @@ class OrderQueueService(object):
         return grpc.experimental.unary_unary(request, target, '/order_queue.OrderQueueService/EnqueueOrder',
             order__queue__pb2.EnqueueOrderRequest.SerializeToString,
             order__queue__pb2.EnqueueOrderResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def DequeueOrder(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/order_queue.OrderQueueService/DequeueOrder',
+            order__queue__pb2.DequeueOrderRequest.SerializeToString,
+            order__queue__pb2.DequeueOrderResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
