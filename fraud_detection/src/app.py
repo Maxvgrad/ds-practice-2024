@@ -14,11 +14,13 @@ import fraud_detection_pb2_grpc as fraud_detection_grpc
 import grpc
 from concurrent import futures
 
+
 logger = logging.getLogger('fraud_detection')
 
 # Create a class to define the server functions, derived from
 # fraud_detection_pb2_grpc.HelloServiceServicer
 class HelloService(fraud_detection_grpc.HelloServiceServicer):
+
     # Create an RPC function to say hello
     def SayHello(self, request, context):
         # Create a HelloResponse object

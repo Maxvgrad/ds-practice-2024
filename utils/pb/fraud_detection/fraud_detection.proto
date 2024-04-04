@@ -70,6 +70,7 @@ message DetectFraudRequest {
   string screenResolution = 15;
   string referrer = 16;
   string deviceLanguage = 17;
+  int32 order_id = 18;
 }
 
 // The response to be returned after fraud detection

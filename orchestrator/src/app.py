@@ -3,6 +3,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from logging.config import dictConfig
+import uuid
 
 # This set of lines are needed to import the gRPC stubs.
 # The path of the stubs is relative to the current file, or absolute inside the container.
@@ -58,6 +59,29 @@ dictConfig({
     }
 })
 
+# Create a dictionary to store the vector clocks for each order
+vector_clocks = {}
+
+# Generate a unique OrderID
+def generate_order_id():
+    return int(datetime.now().timestamp())
+
+def initialize_order(order_id, request_data):
+    vector_clocks[order_id] = [0, 0, 0]
+
+# Update the vector clock for the given order and service
+def update_vector_clock(order_id, service_index):
+    vector_clocks[order_id][service_index] += 1
+
+
+def initialize_order_data(request_data):
+    # Initialize vector clock for the order
+    vector_clock = {'transaction-verification': 0, 'fraud-detection': 0, 'suggestions': 0}
+    return {
+        'order_data': request_data,
+        'vector_clock': vector_clock
+    }
+
 def greet(name='you'):
     # Establish a connection with the fraud-detection gRPC service.
     with grpc.insecure_channel('fraud_detection:50051') as channel:
@@ -68,33 +92,43 @@ def greet(name='you'):
     return response.greeting
 
 
-def detect_fraud(request):
+def detect_fraud(request, order_id):
     # Establish a connection with the fraud-detection gRPC service.
     with grpc.insecure_channel('fraud_detection:50051') as channel:
         # Create a stub object.
         stub = fraud_detection_grpc.HelloServiceStub(channel)
+        metadata = [('vector_clock', str(vector_clocks[order_id]))]
         # Call the service through the stub object.
-        response = stub.DetectFraud(request)
-    return response
+        response = stub.DetectFraud(request['order_data'], metadata=metadata)
+        update_vector_clock(order_id, 1)
+        app.logger.info('Current Vector Clock for Fraud Detection: %s', vector_clocks[order_id])
+    return response, request
 
 
-def verify_transaction(request):
+def verify_transaction(request, order_id):
     with grpc.insecure_channel('transaction_verification:50052') as channel:
         stub = transaction_verification_grpc.TransactionVerificationServiceStub(channel)
-        response = stub.VerifyTransaction(request)
-    return response
+        metadata = [('vector_clock', str(vector_clocks[order_id]))]
+        response = stub.VerifyTransaction(request['order_data'], metadata=metadata)
+        update_vector_clock(order_id, 0)
+        app.logger.info('Current Vector Clock for Transaction Verification: %s', vector_clocks[order_id])
+    return response, request
 
 
-def calculate_suggestions(request):
+def calculate_suggestions(request, order_id):
     with grpc.insecure_channel('suggestions:50053') as channel:
         stub = suggestions_grpc.SuggestionsServiceStub(channel)
+        metadata = [('vector_clock', str(vector_clocks[order_id]))]
         # Call the service through the stub object.
-        response = stub.CalculateSuggestions(request)
-    return response
+        response = stub.CalculateSuggestions(request['order_data'], metadata=metadata)
+        update_vector_clock(order_id, 2)
+        app.logger.info('Current Vector Clock for Suggestions: %s', vector_clocks[order_id])
+    return response, request
     
    
-def convert_to_detect_fraud_request(json_data):
+def convert_to_detect_fraud_request(json_data, order_id):
     return fraud_detection.DetectFraudRequest(
+        order_id=order_id,
         user=fraud_detection.User(
             name=json_data['user']['name'],
             contact=json_data['user']['contact']
@@ -135,7 +169,7 @@ def convert_to_detect_fraud_request(json_data):
     )
 
 
-def convert_to_verify_transaction_request(json_data):
+def convert_to_verify_transaction_request(json_data, order_id):
     # Extract data from JSON and construct a TransactionRequest object
     transaction_request = transaction_verification.TransactionRequest()
 
@@ -144,6 +178,8 @@ def convert_to_verify_transaction_request(json_data):
         item = transaction_request.items.add()
         item.name = item_data['name']
         item.quantity = item_data['quantity']
+    
+    transaction_request.order_id = order_id
 
     # user_id field
     transaction_request.user_id.user_id = json_data.get('user_id', '-1') # TODO: user_id is missing in request
@@ -163,9 +199,10 @@ def convert_to_verify_transaction_request(json_data):
     return transaction_request
 
 
-def convert_to_calculate_suggestions_request(json_data):
+def convert_to_calculate_suggestions_request(json_data, order_id):
     # Create CalculateSuggestionsRequest and populate its fields from json_data
     request = suggestions.CalculateSuggestionsRequest(
+        order_id = order_id,
         user=suggestions.User(
             name=json_data['user']['name'],
             contact=json_data['user']['contact']
@@ -226,6 +263,8 @@ def checkout():
     Responds with a JSON object containing the order ID, status, and suggested books.
     """
     request_data = request.json
+    order_id = generate_order_id()
+    initialize_order(order_id, request_data)
     app.logger.info(
         'device=type=%s, model=%s, os=%s, browser=name=%s, version=%s, appVersion=%s, screenResolution=%s, '
         'referrer=%s, deviceLanguage=%s',
@@ -239,13 +278,17 @@ def checkout():
         request_data['referrer'],
         request_data['deviceLanguage']
         )
+    order_data = initialize_order_data(request_data)
 
     with ThreadPoolExecutor(max_workers=3) as executor:
         verify_transaction_future = executor.submit(verify_transaction,
-                                                    convert_to_verify_transaction_request(request_data))
-        detect_fraud_future = executor.submit(detect_fraud, convert_to_detect_fraud_request(request_data))
+                                                    convert_to_verify_transaction_request(request_data), order_data)
+        update_vector_clock(order_id, 0)
+        detect_fraud_future = executor.submit(detect_fraud, convert_to_detect_fraud_request(request_data), order_data)
+        update_vector_clock(order_id, 1)
         calculate_suggestions_future = executor.submit(calculate_suggestions,
-                                                       convert_to_calculate_suggestions_request(request_data))
+                                                       convert_to_calculate_suggestions_request(request_data), order_data)
+        update_vector_clock(order_id, 2)
 
         verify_transaction_result = verify_transaction_future.result()
         detect_fraud_result = detect_fraud_future.result()

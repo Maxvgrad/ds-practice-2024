@@ -14,14 +14,17 @@ import suggestions_pb2_grpc as suggestions_grpc
 import grpc
 from concurrent import futures
 
+
 logger = logging.getLogger('suggestions')
 
 class SuggestionsService(suggestions_grpc.SuggestionsServiceServicer):
+
 
     def CalculateSuggestions(self, request, context):
         logger.info("device=%s browser=%s app_version=%s screen_resolution=%s referrer=%s device_language=%s",
                      request.device, request.browser, request.app_version, request.screen_resolution,
                      request.referrer, request.device_language)
+
         suggested_books = [
             suggestions.Book(book_id='1', title='Pattern Recognition and Machine Learning',
                              author='Christopher M. Bishop'),

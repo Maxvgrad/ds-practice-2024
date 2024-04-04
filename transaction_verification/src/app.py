@@ -12,6 +12,8 @@ sys.path.insert(0, utils_path)
 import transaction_verification_pb2 as transaction_verification
 import transaction_verification_pb2_grpc as transaction_verification_grpc
 
+
+
 logger = logging.getLogger('transaction_verification')
 
 
@@ -31,6 +33,7 @@ def verify_transaction(transaction_data):
 
 
 class TransactionVerificationService(transaction_verification_grpc.TransactionVerificationServiceServicer):
+
     def VerifyTransaction(self, request, context):
         logger.info("user_id=%s", request.user_id)
         # Extract transaction data from the gRPC request
