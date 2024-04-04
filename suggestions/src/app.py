@@ -14,22 +14,17 @@ import suggestions_pb2_grpc as suggestions_grpc
 import grpc
 from concurrent import futures
 
-# Import Vector Clock Handler
-from vector_clock import VectorClockHandler
 
 logger = logging.getLogger('suggestions')
 
 class SuggestionsService(suggestions_grpc.SuggestionsServiceServicer):
 
-    def __init__(self, vector_clock_handler):
-        self.vector_clock_handler = vector_clock_handler
 
     def CalculateSuggestions(self, request, context):
         logger.info("device=%s browser=%s app_version=%s screen_resolution=%s referrer=%s device_language=%s",
                      request.device, request.browser, request.app_version, request.screen_resolution,
                      request.referrer, request.device_language)
-        # Increment vector clock for suggestions calculation
-        self.vector_clock_handler.update_clock(request.orderId, 'suggestions')
+
         suggested_books = [
             suggestions.Book(book_id='1', title='Pattern Recognition and Machine Learning',
                              author='Christopher M. Bishop'),
@@ -45,10 +40,8 @@ class SuggestionsService(suggestions_grpc.SuggestionsServiceServicer):
         return response
 
 def serve():
-    # Initialize vector clock handler
-    vector_clock_handler = VectorClockHandler()
     server = grpc.server(futures.ThreadPoolExecutor())
-    suggestions_grpc.add_SuggestionsServiceServicer_to_server(SuggestionsService(vector_clock_handler), server)
+    suggestions_grpc.add_SuggestionsServiceServicer_to_server(SuggestionsService(), server)
     port = "50053"
     server.add_insecure_port("[::]:" + port)
     server.start()

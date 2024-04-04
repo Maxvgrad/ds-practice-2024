@@ -34,6 +34,7 @@ message TransactionRequest {
     UserId user_id = 2;
     ShippingAddress shipping_address = 3;
     PaymentDetails payment_details = 4;
+    int32 order_id = 5;
 }
 
 message TransactionResponse {

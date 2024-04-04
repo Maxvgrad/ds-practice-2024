@@ -34,6 +34,7 @@ message CalculateSuggestionsRequest {
   string screen_resolution = 15;
   string referrer = 16;
   string device_language = 17;
+  int32 order_id = 18;
 }
 
 message User {
