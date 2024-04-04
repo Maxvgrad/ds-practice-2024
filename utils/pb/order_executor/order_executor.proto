@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package order.executor;
+
+message PassTokenRequest {
+}
+
+message PassTokenResponse {
+}
+
+message GetStateTokenRequest {
+}
+
+message GetStateTokenResponse {
+  string state = 1;
+}
+
+service OrderExecutorService {
+
+  rpc PassToken(PassTokenRequest) returns (PassTokenResponse) {}
+
+  rpc GetStateToken(GetStateTokenRequest) returns (GetStateTokenResponse) {}
+}
