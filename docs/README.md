@@ -7,3 +7,6 @@ This folder should contain your documentation, explaining the structure and cont
 
 ## Architecture diagram
 ![architecture-diagram](architecture-diagram.png)
+
+## Vector diagram
+![vector-diagram](vector-diagram.png)
