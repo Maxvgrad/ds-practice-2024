@@ -10,3 +10,6 @@ This folder should contain your documentation, explaining the structure and cont
 
 ## Vector diagram
 ![vector-diagram](vector-diagram.png)
+
+## Order executor state diagram
+![order_executor_state_diagram.png](order_executor_state_diagram.png)
