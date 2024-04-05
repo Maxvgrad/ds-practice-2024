@@ -8,5 +8,8 @@ This folder should contain your documentation, explaining the structure and cont
 ## Architecture diagram
 ![architecture-diagram](architecture-diagram.png)
 
-## Vector diagram
+## Order processing sequence diagram (vector clocks)
 ![vector-diagram](vector-diagram.png)
+
+## Order executor state diagram
+![order_executor_state_diagram.png](order_executor_state_diagram.png)
