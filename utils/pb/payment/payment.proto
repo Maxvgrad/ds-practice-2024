@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package payment;
+
+service PaymentService {
+  rpc ExecutePayment(ExecutePaymentRequest) returns (ExecutePaymentResponse);
+}
+
+message ExecutePaymentResponse {
+  int32 payment_id = 1;
+}
+
+message ExecutePaymentRequest {
+  PaymentDetails payment_details = 1;
+}
+
+message PaymentDetails {
+    string number = 1;
+    string expiration_date = 2;
+    string cvv = 3;
+}
