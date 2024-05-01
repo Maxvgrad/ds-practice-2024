@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package books_database;
+
+// The book info message type.
+message BookInfo {
+  string book_id = 1;
+  string title = 2;
+  string author = 3;
+}
+
+// The read request message type.
+message ReadRequest {
+  string book_id = 1;
+}
+
+// The write request message type.
+message WriteRequest {
+  string book_id = 1;
+  string title = 2;
+  string author = 3;
+}
+
+// The write response message type.
+message WriteResponse {
+  bool success = 1;
+}
+
+// The service definition.
+service BooksDatabase {
+  rpc Read (ReadRequest) returns (BookInfo) {}
+  rpc Write (WriteRequest) returns (WriteResponse) {}
+}
