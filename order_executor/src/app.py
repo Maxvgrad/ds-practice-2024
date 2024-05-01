@@ -6,6 +6,7 @@ import time
 import schedule
 import threading
 from enum import Enum
+import json
 
 # This set of lines are needed to import the gRPC stubs.
 # The path of the stubs is relative to the current file, or absolute inside the container.
@@ -21,6 +22,12 @@ utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/order_queue')
 sys.path.insert(0, utils_path)
 import order_queue_pb2 as order_queue
 import order_queue_pb2_grpc as order_queue_grpc
+
+FILE = __file__ if '__file__' in globals() else os.getenv("PYTHONFILE", "")
+utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/payment'))
+sys.path.insert(0, utils_path)
+import payment_pb2 as payment
+import payment_pb2_grpc as payment_grpc
 
 import grpc
 from concurrent import futures
@@ -90,7 +97,24 @@ class OrderExecutorService(order_executor_grpc.OrderExecutorServiceServicer):
         if order is not None:
             # submit processing
             logger.info(f"Submit order {order.order_id} type {order.order_type} for processing.")
-            time.sleep(1)
+
+            if order.order_type == "BOOK_ORDER":
+                try:
+                    request = json.loads(order.payload)
+                    payment_details = request["creditCard"]
+                    request = payment.ExecutePaymentRequest(
+                        payment_details=payment.PaymentDetails(
+                            number=payment_details.get("number", ""),
+                            expiration_date=payment_details.get("expirationDate", ""),
+                            cvv=payment_details.get("cvv", "")
+                        )
+                    )
+                    payment_response = execute_payment(request)
+                    logger.info(f"Payment executed payment_id={payment_response.payment_id}.")
+                except Exception as e:
+                    logger.error("Error passing token.", e)
+                except:
+                    logger.error("Unexpected error during payment execution.")
         else:
             time.sleep(2)
 
@@ -197,6 +221,13 @@ def dequeue_order(retries=3, delay=2):
                         time.sleep(delay)
         logger.error("All retry attempts failed.")
         raise grpc.RpcError("All retry attempts failed.")
+
+
+def execute_payment(request):
+    with grpc.insecure_channel('payment:50057') as channel:
+        stub = payment_grpc.PaymentServiceStub(channel)
+        response = stub.ExecutePayment(request)
+        return response
 
 
 def serve(replica_id, replicas):
