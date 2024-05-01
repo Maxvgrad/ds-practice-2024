@@ -13,3 +13,6 @@ This folder should contain your documentation, explaining the structure and cont
 
 ## Order executor state diagram
 ![order_executor_state_diagram.png](order_executor_state_diagram.png)
+
+## Order executor component diagram (token ring)
+![token-ring-diagram.png](token-ring-diagram.png)
