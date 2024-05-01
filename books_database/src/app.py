@@ -49,7 +49,7 @@ def serve():
     # Add the BooksDatabase service
     books_database_grpc.add_BooksDatabaseServiceServicer_to_server(BooksDatabaseService(), server)
     # Listen on port 50053
-    port = "50053"
+    port = "50056"
     server.add_insecure_port("[::]:" + port)
     # Start the server
     server.start()
