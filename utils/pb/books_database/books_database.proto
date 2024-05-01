@@ -11,7 +11,7 @@ message BookInfo {
 
 // The read request message type.
 message ReadRequest {
-  string book_id = 1;
+  string title = 1;
 }
 
 // The write request message type.
