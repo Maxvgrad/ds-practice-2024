@@ -13,16 +13,16 @@ logger = logging.getLogger('books_database')
 
 class BooksDatabaseService(books_database_grpc.BooksDatabaseServiceServicer):
     def Read(self, request, context):
-        logger.info("book_id=%s", request.book_id)
+        logger.info("title=%s", request.title)
         # Extract book_id from the gRPC request
-        book_id = request.book_id
+        title = request.title
         # Perform read operation
-        book_info = read_book(book_id)
+        book_info = read_book(title)
         # Create a response message
         response = books_database.BookInfo()
-        response.book_id = book_info['book_id']
         response.title = book_info['title']
-        response.author = book_info['author']
+        response.stock = book_info['stock']
+        response.version = book_info['version']
         logger.info("title=%s", response.title)
         return response
 
@@ -30,9 +30,9 @@ class BooksDatabaseService(books_database_grpc.BooksDatabaseServiceServicer):
         logger.info("book_id=%s", request.book_id)
         # Extract book data from the gRPC request
         book_data = {
-            'book_id': request.book_id,
             'title': request.title,
-            'author': request.author
+            'stock': request.stock,
+            'version': request.version
         }
         # Perform write operation
         success = write_book(book_data)
@@ -53,7 +53,7 @@ def serve():
     server.add_insecure_port("[::]:" + port)
     # Start the server
     server.start()
-    logger.info("Books Database Server started. Listening on port 50053.")
+    logger.info("Books Database Server started. Listening on port 50056.")
     # Keep the thread alive
     server.wait_for_termination()
 

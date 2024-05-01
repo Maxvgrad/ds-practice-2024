@@ -5,30 +5,30 @@ from typing import ClassVar as _ClassVar, Optional as _Optional
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class BookInfo(_message.Message):
-    __slots__ = ("book_id", "title", "author")
-    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("title", "stock", "version")
     TITLE_FIELD_NUMBER: _ClassVar[int]
-    AUTHOR_FIELD_NUMBER: _ClassVar[int]
-    book_id: str
+    STOCK_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
     title: str
-    author: str
-    def __init__(self, book_id: _Optional[str] = ..., title: _Optional[str] = ..., author: _Optional[str] = ...) -> None: ...
+    stock: int
+    version: int
+    def __init__(self, title: _Optional[str] = ..., stock: _Optional[int] = ..., version: _Optional[int] = ...) -> None: ...
 
 class ReadRequest(_message.Message):
-    __slots__ = ("book_id",)
-    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
-    book_id: str
-    def __init__(self, book_id: _Optional[str] = ...) -> None: ...
+    __slots__ = ("title",)
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    title: str
+    def __init__(self, title: _Optional[str] = ...) -> None: ...
 
 class WriteRequest(_message.Message):
-    __slots__ = ("book_id", "title", "author")
-    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("title", "stock", "version")
     TITLE_FIELD_NUMBER: _ClassVar[int]
-    AUTHOR_FIELD_NUMBER: _ClassVar[int]
-    book_id: str
+    STOCK_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
     title: str
-    author: str
-    def __init__(self, book_id: _Optional[str] = ..., title: _Optional[str] = ..., author: _Optional[str] = ...) -> None: ...
+    stock: int
+    version: int
+    def __init__(self, title: _Optional[str] = ..., stock: _Optional[int] = ..., version: _Optional[int] = ...) -> None: ...
 
 class WriteResponse(_message.Message):
     __slots__ = ("success",)
