@@ -19,7 +19,7 @@ docker compose up
 ```
 
 ```bash
-docker compose up frontend orchestrator order_queue order_executor_0 order_executor_1 payment
+docker compose up frontend orchestrator order_queue order_executor_0 order_executor_1 payment books_database_0 books_database_1 books_database_2
 ```
 
 This will start the system with the multiple services. Each service will be restarted automatically when you make changes to the code, so you don't have to restart the system manually while developing. If you want to know how the services are started and configured, check the `docker-compose.yaml` file.
