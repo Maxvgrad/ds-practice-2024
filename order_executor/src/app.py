@@ -29,12 +29,28 @@ sys.path.insert(0, utils_path)
 import payment_pb2 as payment
 import payment_pb2_grpc as payment_grpc
 
+FILE = __file__ if '__file__' in globals() else os.getenv("PYTHONFILE", "")
+utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/books_database'))
+sys.path.insert(0, utils_path)
+import books_database_pb2 as books_database
+import books_database_pb2_grpc as books_database_grpc
+
 import grpc
 from concurrent import futures
 
 logger = logging.getLogger('order_executor')
 
 executor = ThreadPoolExecutor(max_workers=2)
+
+
+class OutOfStockException(Exception):
+    def __init__(self, title, message="Insufficient stock for the book"):
+        self.title = title
+        self.message = message
+        super().__init__(self.message)
+
+    def __str__(self):
+        return f"{self.message}: {self.title}"
 
 class Replica:
     def __init__(self, replica_id):
@@ -54,11 +70,14 @@ class OrderExecutorState(Enum):
 
 class OrderExecutorService(order_executor_grpc.OrderExecutorServiceServicer):
 
-    def __init__(self, replica_id, replicas):
+    def __init__(self, replica_id, replicas, book_database_replica_urls):
         self.state = OrderExecutorState.NO_TOKEN
         self.replica_id = replica_id
         self.replicas = replicas
         self.start_liveness_check_scheduler()
+        assert len(book_database_replica_urls) > 0
+        self.book_database_replica_urls = book_database_replica_urls
+        self.next_database_replica_url_index = 0
 
 
     def PassToken(self, request, context):
@@ -100,8 +119,22 @@ class OrderExecutorService(order_executor_grpc.OrderExecutorServiceServicer):
 
             if order.order_type == "BOOK_ORDER":
                 try:
-                    request = json.loads(order.payload)
-                    payment_details = request["creditCard"]
+                    order_payload = json.loads(order.payload)
+                    items = order_payload["items"]
+                    for item in items:
+                        books_database_replica_url = self.get_next_book_database_replica_url()
+                        request = books_database.ReadRequest(title=item["name"])
+                        book_info = read_book_info(books_database_replica_url, request)
+                        book_info.stock -= int(item['quantity'])
+
+                        if book_info.stock < 0:
+                            logger.error(f"Insufficient stock for the book: {book_info.title}.")
+                            raise OutOfStockException(book_info.title)
+
+                        request = books_database.WriteRequest(title=book_info.title, stock=book_info.stock, version=book_info.version)
+                        book_info = write_book_info(books_database_replica_url, request)
+
+                    payment_details = order_payload["creditCard"]
                     request = payment.ExecutePaymentRequest(
                         payment_details=payment.PaymentDetails(
                             number=payment_details.get("number", ""),
@@ -111,6 +144,8 @@ class OrderExecutorService(order_executor_grpc.OrderExecutorServiceServicer):
                     )
                     payment_response = execute_payment(request)
                     logger.info(f"Payment executed payment_id={payment_response.payment_id}.")
+                except OutOfStockException as e:
+                    logger.error(e)
                 except Exception as e:
                     logger.error("Error passing token.", e)
                 except:
@@ -177,6 +212,9 @@ class OrderExecutorService(order_executor_grpc.OrderExecutorServiceServicer):
             except Exception as e:
                 logger.error(f"Failed to check liveness for replica {replica.replica_id}: {e}")
 
+    def get_next_book_database_replica_url(self):
+        self.next_database_replica_url_index = (self.next_database_replica_url_index + 1) % len(self.book_database_replica_urls)
+        return self.book_database_replica_urls[self.next_database_replica_url_index]
 
 def pass_token(request, replica):
     max_retries = 3  # Maximum number of retries
@@ -230,8 +268,35 @@ def execute_payment(request):
         return response
 
 
-def serve(replica_id, replicas):
-    service_instance = OrderExecutorService(replica_id, replicas)
+def read_book_info(replica_url, request):
+    with grpc.insecure_channel(replica_url) as channel:
+        stub = books_database_grpc.BooksDatabaseServiceStub(channel)
+        try:
+            response = stub.Read(request)
+            if not response.title:
+                raise ValueError("Book not found.")
+            return response
+        except grpc.RpcError as e:
+            if e.code() == grpc.StatusCode.NOT_FOUND:
+                logger.error(f"Book with title {request.title} not found.")
+            else:
+                logger.error(f"Failed to read book info for title {request.title}: {e.details()}")
+            raise
+
+
+def write_book_info(replica_url, request):
+    with grpc.insecure_channel(replica_url) as channel:
+        stub = books_database_grpc.BooksDatabaseServiceStub(channel)
+        try:
+            response = stub.Write(request)
+            return response
+        except grpc.RpcError as e:
+            logger.error(f"Failed to update book info for title {request.title}: {e.details()}")
+            raise
+
+
+def serve(replica_id, replicas, book_database_replica_urls):
+    service_instance = OrderExecutorService(replica_id, replicas, book_database_replica_urls)
     server = grpc.server(futures.ThreadPoolExecutor())
     order_executor_grpc.add_OrderExecutorServiceServicer_to_server(service_instance, server)
 
@@ -250,6 +315,7 @@ def serve(replica_id, replicas):
 if __name__ == '__main__':
     replica_id = int(os.getenv('INSTANCE_ID'))
     max_number_of_replicas = int(os.getenv('MAX_NUMBER_OF_REPLICAS'))
+    book_database_replica_urls = [url.strip() for url in os.getenv('BOOK_DATABASE_REPLICA_URLS').split(',')]
     replicas = [Replica(replica_id=id) for id in range(max_number_of_replicas)]
 
     logging.basicConfig(level=logging.INFO,
@@ -257,5 +323,5 @@ if __name__ == '__main__':
                         filemode='a',
                         encoding='utf-8'
                         )
-    serve(replica_id, replicas)
+    serve(replica_id, replicas, book_database_replica_urls)
 
