@@ -25,6 +25,11 @@ class BooksDatabaseServiceStub(object):
                 request_serializer=books__database__pb2.WriteRequest.SerializeToString,
                 response_deserializer=books__database__pb2.WriteResponse.FromString,
                 )
+        self.SyncWrite = channel.unary_unary(
+                '/books_database.BooksDatabaseService/SyncWrite',
+                request_serializer=books__database__pb2.WriteRequest.SerializeToString,
+                response_deserializer=books__database__pb2.WriteResponse.FromString,
+                )
 
 
 class BooksDatabaseServiceServicer(object):
@@ -43,6 +48,12 @@ class BooksDatabaseServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def SyncWrite(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_BooksDatabaseServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -53,6 +64,11 @@ def add_BooksDatabaseServiceServicer_to_server(servicer, server):
             ),
             'Write': grpc.unary_unary_rpc_method_handler(
                     servicer.Write,
+                    request_deserializer=books__database__pb2.WriteRequest.FromString,
+                    response_serializer=books__database__pb2.WriteResponse.SerializeToString,
+            ),
+            'SyncWrite': grpc.unary_unary_rpc_method_handler(
+                    servicer.SyncWrite,
                     request_deserializer=books__database__pb2.WriteRequest.FromString,
                     response_serializer=books__database__pb2.WriteResponse.SerializeToString,
             ),
@@ -96,6 +112,23 @@ class BooksDatabaseService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/books_database.BooksDatabaseService/Write',
+            books__database__pb2.WriteRequest.SerializeToString,
+            books__database__pb2.WriteResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def SyncWrite(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/books_database.BooksDatabaseService/SyncWrite',
             books__database__pb2.WriteRequest.SerializeToString,
             books__database__pb2.WriteResponse.FromString,
             options, channel_credentials,

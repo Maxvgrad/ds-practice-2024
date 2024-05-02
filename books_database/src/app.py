@@ -15,7 +15,7 @@ logger = logging.getLogger('books_database')
 class Replica:
     def __init__(self, replica_id):
         self.replica_id = replica_id
-        self.replica_url = f'books_database_{replica_id}:50055'
+        self.replica_url = f'books_database_{replica_id}:50056'
 
     def __lt__(self, other):
         """Less than comparison for sorting."""
@@ -26,40 +26,71 @@ class BooksDatabaseService(books_database_grpc.BooksDatabaseServiceServicer):
 
     def __init__(self, replica_id, replicas):
         self.replica_id = replica_id
-        self.leader_replica_id = replicas[-1].replica_id
-        self.is_leader = self.leader_replica_id == replica_id
+        self.primary_replica_id = replicas[-1].replica_id
+        self.primary_replica = replicas[-1]
+        self.is_primary = self.primary_replica_id == replica_id
         self.replicas = replicas
-
+        self.storage = {}
 
     def Read(self, request, context):
         logger.info("title=%s", request.title)
-        # Extract book_id from the gRPC request
         title = request.title
-        # Perform read operation
-        book_info = books_database.BookInfo()
-        # Create a response message
-        response = books_database.BookInfo()
-        response.title = book_info['title']
-        response.stock = book_info['stock']
-        response.version = book_info['version']
-        logger.info("title=%s", response.title)
-        return response
+        if title in self.storage:
+            book_info = self.storage[title]
+            return books_database.BookInfo(
+                title=book_info['title'], stock=book_info['stock'], version=book_info['version'])
+        else:
+            # initialize stock for missing title. Initial stock is out of scope of the task.
+            # We simply assign stock 2 to missing title
+            self.storage[request.title] = {'title': request.title, 'stock': 2, 'version': 0}
+            book_info = self.storage[title]
+            sync_request = books_database.WriteRequest(
+                title=book_info['title'], stock=book_info['stock'], version=book_info['version'])
+            acks = self.propagate_to_replicas(sync_request)
+            assert all(acks)  # Ensure all replicas acknowledged
+            return books_database.BookInfo(
+                title=book_info['title'], stock=book_info['stock'], version=book_info['version'])
 
     def Write(self, request, context):
         logger.info("title=%s stock=%s version=%s", request.title, request.stock, request.version)
-        # Extract book data from the gRPC request
-        book_data = {
-            'title': request.title,
-            'stock': request.stock,
-            'version': request.version
-        }
-        # Perform write operation
-        # success = books_database.WriteResponse()
-        # Create a response message
-        response = books_database.WriteResponse()
-        response.success = True
-        logger.info("success=%s", response.success)
-        return response
+        if not self.is_primary:
+            # Forward the write request to the primary
+            return self.forward_write_to_primary(request)
+        else:
+            # Execute write at primary
+            self.storage[request.title] = {'title': request.title, 'stock': request.stock, 'version': request.version}
+            # Propagate to backups and wait for acknowledgments
+            acks = self.propagate_to_replicas(request)
+            success = all(acks)  # Ensure all replicas acknowledged
+            return books_database.WriteResponse(success=success)
+
+    def find_primary(self, book_info):
+        # Primary replica is constant. It can be updated to runtime calculation of replica.
+        return self.primary_replica
+
+    def forward_write_to_primary(self, request):
+        # Communicate with the primary server using gRPC
+        channel = grpc.insecure_channel(self.primary_replica.replica_url)
+        client = books_database_grpc.BooksDatabaseServiceStub(channel)
+        return client.Write(request)
+
+    def propagate_to_replicas(self, request):
+        acknowledgments = []
+        for replica in self.replicas:
+            if replica.replica_id != self.replica_id:  # Do not send to self
+                with grpc.insecure_channel(replica.replica_url) as channel:
+                    client = books_database_grpc.BooksDatabaseServiceStub(channel)
+                    try:
+                        response = client.SyncWrite(request)
+                        acknowledgments.append(response.success)
+                    except grpc.RpcError as e:
+                        logger.error(f"Replication failed for {replica.replica_url}: {e}")
+                        acknowledgments.append(False)
+        return acknowledgments
+
+    def SyncWrite(self, request, context):
+        self.storage[request.title] = {'title': request.title, 'stock': request.stock, 'version': request.version}
+        return books_database.WriteResponse(success=True)
 
 # Define the serve function to start the gRPC server
 def serve(replica_id, replicas):

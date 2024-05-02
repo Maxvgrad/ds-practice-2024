@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14\x62ooks_database.proto\x12\x0e\x62ooks_database\"9\n\x08\x42ookInfo\x12\r\n\x05title\x18\x01 \x01(\t\x12\r\n\x05stock\x18\x02 \x01(\x05\x12\x0f\n\x07version\x18\x03 \x01(\x05\"\x1c\n\x0bReadRequest\x12\r\n\x05title\x18\x01 \x01(\t\"=\n\x0cWriteRequest\x12\r\n\x05title\x18\x01 \x01(\t\x12\r\n\x05stock\x18\x02 \x01(\x05\x12\x0f\n\x07version\x18\x03 \x01(\x05\" \n\rWriteResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x32\x9f\x01\n\x14\x42ooksDatabaseService\x12?\n\x04Read\x12\x1b.books_database.ReadRequest\x1a\x18.books_database.BookInfo\"\x00\x12\x46\n\x05Write\x12\x1c.books_database.WriteRequest\x1a\x1d.books_database.WriteResponse\"\x00\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14\x62ooks_database.proto\x12\x0e\x62ooks_database\"9\n\x08\x42ookInfo\x12\r\n\x05title\x18\x01 \x01(\t\x12\r\n\x05stock\x18\x02 \x01(\x05\x12\x0f\n\x07version\x18\x03 \x01(\x05\"\x1c\n\x0bReadRequest\x12\r\n\x05title\x18\x01 \x01(\t\"=\n\x0cWriteRequest\x12\r\n\x05title\x18\x01 \x01(\t\x12\r\n\x05stock\x18\x02 \x01(\x05\x12\x0f\n\x07version\x18\x03 \x01(\x05\" \n\rWriteResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x32\xeb\x01\n\x14\x42ooksDatabaseService\x12?\n\x04Read\x12\x1b.books_database.ReadRequest\x1a\x18.books_database.BookInfo\"\x00\x12\x46\n\x05Write\x12\x1c.books_database.WriteRequest\x1a\x1d.books_database.WriteResponse\"\x00\x12J\n\tSyncWrite\x12\x1c.books_database.WriteRequest\x1a\x1d.books_database.WriteResponse\"\x00\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -30,5 +30,5 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _globals['_WRITERESPONSE']._serialized_start=192
   _globals['_WRITERESPONSE']._serialized_end=224
   _globals['_BOOKSDATABASESERVICE']._serialized_start=227
-  _globals['_BOOKSDATABASESERVICE']._serialized_end=386
+  _globals['_BOOKSDATABASESERVICE']._serialized_end=462
 # @@protoc_insertion_point(module_scope)

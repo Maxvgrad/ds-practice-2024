@@ -133,6 +133,7 @@ services:
     environment:
       - INSTANCE_ID=0
       - MAX_NUMBER_OF_REPLICAS=2
+      - BOOK_DATABASE_REPLICA_URLS=books_database_0:50056,books_database_1:50056,books_database_2:50056
       # Pass the environment variables to the container
       # The PYTHONUNBUFFERED environment variable ensures that the output from the application is logged to the console
       - PYTHONUNBUFFERED=TRUE
@@ -154,6 +155,7 @@ services:
     environment:
       - INSTANCE_ID=1
       - MAX_NUMBER_OF_REPLICAS=2
+      - BOOK_DATABASE_REPLICA_URLS=books_database_0:50056,books_database_1:50056,books_database_2:50056
       # Pass the environment variables to the container
       # The PYTHONUNBUFFERED environment variable ensures that the output from the application is logged to the console
       - PYTHONUNBUFFERED=TRUE

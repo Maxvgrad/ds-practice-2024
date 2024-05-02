@@ -30,4 +30,5 @@ message WriteResponse {
 service BooksDatabaseService {
   rpc Read (ReadRequest) returns (BookInfo) {}
   rpc Write (WriteRequest) returns (WriteResponse) {}
+  rpc SyncWrite (WriteRequest) returns (WriteResponse) {}
 }
