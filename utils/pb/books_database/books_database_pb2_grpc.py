@@ -2,10 +2,10 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-from utils.pb.books_database import books_database_pb2 as utils_dot_pb_dot_books__database_dot_books__database__pb2
+import books_database_pb2 as books__database__pb2
 
 
-class BooksDatabaseStub(object):
+class BooksDatabaseServiceStub(object):
     """The service definition.
     """
 
@@ -16,18 +16,18 @@ class BooksDatabaseStub(object):
             channel: A grpc.Channel.
         """
         self.Read = channel.unary_unary(
-                '/books_database.BooksDatabase/Read',
-                request_serializer=utils_dot_pb_dot_books__database_dot_books__database__pb2.ReadRequest.SerializeToString,
-                response_deserializer=utils_dot_pb_dot_books__database_dot_books__database__pb2.BookInfo.FromString,
+                '/books_database.BooksDatabaseService/Read',
+                request_serializer=books__database__pb2.ReadRequest.SerializeToString,
+                response_deserializer=books__database__pb2.BookInfo.FromString,
                 )
         self.Write = channel.unary_unary(
-                '/books_database.BooksDatabase/Write',
-                request_serializer=utils_dot_pb_dot_books__database_dot_books__database__pb2.WriteRequest.SerializeToString,
-                response_deserializer=utils_dot_pb_dot_books__database_dot_books__database__pb2.WriteResponse.FromString,
+                '/books_database.BooksDatabaseService/Write',
+                request_serializer=books__database__pb2.WriteRequest.SerializeToString,
+                response_deserializer=books__database__pb2.WriteResponse.FromString,
                 )
 
 
-class BooksDatabaseServicer(object):
+class BooksDatabaseServiceServicer(object):
     """The service definition.
     """
 
@@ -44,26 +44,26 @@ class BooksDatabaseServicer(object):
         raise NotImplementedError('Method not implemented!')
 
 
-def add_BooksDatabaseServicer_to_server(servicer, server):
+def add_BooksDatabaseServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'Read': grpc.unary_unary_rpc_method_handler(
                     servicer.Read,
-                    request_deserializer=utils_dot_pb_dot_books__database_dot_books__database__pb2.ReadRequest.FromString,
-                    response_serializer=utils_dot_pb_dot_books__database_dot_books__database__pb2.BookInfo.SerializeToString,
+                    request_deserializer=books__database__pb2.ReadRequest.FromString,
+                    response_serializer=books__database__pb2.BookInfo.SerializeToString,
             ),
             'Write': grpc.unary_unary_rpc_method_handler(
                     servicer.Write,
-                    request_deserializer=utils_dot_pb_dot_books__database_dot_books__database__pb2.WriteRequest.FromString,
-                    response_serializer=utils_dot_pb_dot_books__database_dot_books__database__pb2.WriteResponse.SerializeToString,
+                    request_deserializer=books__database__pb2.WriteRequest.FromString,
+                    response_serializer=books__database__pb2.WriteResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'books_database.BooksDatabase', rpc_method_handlers)
+            'books_database.BooksDatabaseService', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
 
 
  # This class is part of an EXPERIMENTAL API.
-class BooksDatabase(object):
+class BooksDatabaseService(object):
     """The service definition.
     """
 
@@ -78,9 +78,9 @@ class BooksDatabase(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/books_database.BooksDatabase/Read',
-            utils_dot_pb_dot_books__database_dot_books__database__pb2.ReadRequest.SerializeToString,
-            utils_dot_pb_dot_books__database_dot_books__database__pb2.BookInfo.FromString,
+        return grpc.experimental.unary_unary(request, target, '/books_database.BooksDatabaseService/Read',
+            books__database__pb2.ReadRequest.SerializeToString,
+            books__database__pb2.BookInfo.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -95,8 +95,8 @@ class BooksDatabase(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/books_database.BooksDatabase/Write',
-            utils_dot_pb_dot_books__database_dot_books__database__pb2.WriteRequest.SerializeToString,
-            utils_dot_pb_dot_books__database_dot_books__database__pb2.WriteResponse.FromString,
+        return grpc.experimental.unary_unary(request, target, '/books_database.BooksDatabaseService/Write',
+            books__database__pb2.WriteRequest.SerializeToString,
+            books__database__pb2.WriteResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

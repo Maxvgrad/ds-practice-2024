@@ -27,7 +27,7 @@ message WriteResponse {
 }
 
 // The service definition.
-service BooksDatabase {
+service BooksDatabaseService {
   rpc Read (ReadRequest) returns (BookInfo) {}
   rpc Write (WriteRequest) returns (WriteResponse) {}
 }

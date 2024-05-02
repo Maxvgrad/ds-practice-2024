@@ -165,6 +165,69 @@ services:
       - ./utils:/app/utils
       # Mount the order_executor/src directory in the current directory to the /app/order_executor/src directory in the container
       - ./order_executor/src:/app/order_executor/src
+  books_database_0:
+    build:
+      # Use the current directory as the build context
+      # This allows us to access the files in the current directory inside the Dockerfile
+      context: ./
+      # Use the Dockerfile in the books_database directorys
+      dockerfile: ./books_database/Dockerfile
+    environment:
+      - INSTANCE_ID=0
+      - MAX_NUMBER_OF_REPLICAS=3
+      # Pass the environment variables to the container
+      # The PYTHONUNBUFFERED environment variable ensures that the output from the application is logged to the console
+      - PYTHONUNBUFFERED=TRUE
+      # The PYTHONFILE environment variable specifies the absolute entry point of the application
+      # Check app.py in the books_database directory to see how this is used
+      - PYTHONFILE=/app/books_database/src/app.py
+    volumes:
+      # Mount the utils directory in the current directory to the /app/utils directory in the container
+      - ./utils:/app/utils
+      # Mount the books_database/src directory in the current directory to the /app/books_database/src directory in the container
+      - ./books_database/src:/app/books_database/src
+  books_database_1:
+    build:
+      # Use the current directory as the build context
+      # This allows us to access the files in the current directory inside the Dockerfile
+      context: ./
+      # Use the Dockerfile in the books_database directorys
+      dockerfile: ./books_database/Dockerfile
+    environment:
+      - INSTANCE_ID=1
+      - MAX_NUMBER_OF_REPLICAS=3
+      # Pass the environment variables to the container
+      # The PYTHONUNBUFFERED environment variable ensures that the output from the application is logged to the console
+      - PYTHONUNBUFFERED=TRUE
+      # The PYTHONFILE environment variable specifies the absolute entry point of the application
+      # Check app.py in the books_database directory to see how this is used
+      - PYTHONFILE=/app/books_database/src/app.py
+    volumes:
+      # Mount the utils directory in the current directory to the /app/utils directory in the container
+      - ./utils:/app/utils
+      # Mount the books_database/src directory in the current directory to the /app/books_database/src directory in the container
+      - ./books_database/src:/app/books_database/src
+  books_database_2:
+    build:
+      # Use the current directory as the build context
+      # This allows us to access the files in the current directory inside the Dockerfile
+      context: ./
+      # Use the Dockerfile in the books_database directorys
+      dockerfile: ./books_database/Dockerfile
+    environment:
+      - INSTANCE_ID=2
+      - MAX_NUMBER_OF_REPLICAS=3
+      # Pass the environment variables to the container
+      # The PYTHONUNBUFFERED environment variable ensures that the output from the application is logged to the console
+      - PYTHONUNBUFFERED=TRUE
+      # The PYTHONFILE environment variable specifies the absolute entry point of the application
+      # Check app.py in the books_database directory to see how this is used
+      - PYTHONFILE=/app/books_database/src/app.py
+    volumes:
+      # Mount the utils directory in the current directory to the /app/utils directory in the container
+      - ./utils:/app/utils
+      # Mount the books_database/src directory in the current directory to the /app/books_database/src directory in the container
+      - ./books_database/src:/app/books_database/src
   payment:
     build:
       # Use the current directory as the build context
