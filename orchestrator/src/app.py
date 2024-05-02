@@ -65,6 +65,8 @@ dictConfig({
     }
 })
 
+skip_validation = True
+
 def greet(name='you'):
     # Establish a connection with the fraud-detection gRPC service.
     with grpc.insecure_channel('fraud_detection:50051') as channel:
@@ -282,32 +284,37 @@ def checkout():
         request_data['deviceLanguage']
         )
 
-    with ThreadPoolExecutor(max_workers=3) as executor:
-        verify_transaction_future = executor.submit(verify_transaction,
-                                                    convert_to_verify_transaction_request(request_data))
-        detect_fraud_future = executor.submit(detect_fraud, convert_to_detect_fraud_request(request_data))
-        calculate_suggestions_future = executor.submit(calculate_suggestions,
-                                                       convert_to_calculate_suggestions_request(request_data))
+    suggested_books = []
 
-        verify_transaction_result = verify_transaction_future.result()
-        detect_fraud_result = detect_fraud_future.result()
-        calculate_suggestions_result = calculate_suggestions_future.result()
+    if not skip_validation:
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            verify_transaction_future = executor.submit(verify_transaction,
+                                                        convert_to_verify_transaction_request(request_data))
+            detect_fraud_future = executor.submit(detect_fraud, convert_to_detect_fraud_request(request_data))
+            calculate_suggestions_future = executor.submit(calculate_suggestions,
+                                                           convert_to_calculate_suggestions_request(request_data))
 
-    if not verify_transaction_result.is_valid:
-        app.logger.info('Transaction invalid. message=%s', verify_transaction_result.message)
-        return jsonify(
-            {'error': f'Transaction unverified. Message {verify_transaction_result.message}. '
-                      f'Please check your transaction details and try again.'}), 400
+            verify_transaction_result = verify_transaction_future.result()
+            detect_fraud_result = detect_fraud_future.result()
+            calculate_suggestions_result = calculate_suggestions_future.result()
 
-    if detect_fraud_result.isFraud:
-        app.logger.info('Fraud is detected. reason=%s', detect_fraud_result.reason)
-        return jsonify(
-            {'error': 'Your payment cannot be processed. Please contact customer support for further assistance.'}), 400
+        if not verify_transaction_result.is_valid:
+            app.logger.info('Transaction invalid. message=%s', verify_transaction_result.message)
+            return jsonify(
+                {'error': f'Transaction unverified. Message {verify_transaction_result.message}. '
+                          f'Please check your transaction details and try again.'}), 400
 
-    app.logger.info('Suggested books size=%s', len(calculate_suggestions_result.suggested_books))
+        if detect_fraud_result.isFraud:
+            app.logger.info('Fraud is detected. reason=%s', detect_fraud_result.reason)
+            return jsonify(
+                {'error': 'Your payment cannot be processed. Please contact customer support for further assistance.'}), 400
+
+        suggested_books = calculate_suggestions_result.suggested_books
+
+    app.logger.info('Suggested books size=%s', len(suggested_books))
     suggested_books_list = [
         {'bookId': book.book_id, 'title': book.title, 'author': book.author}
-        for book in calculate_suggestions_result.suggested_books
+        for book in suggested_books
     ]
     response_data = {
         'orderId': int(datetime.now().timestamp()),
