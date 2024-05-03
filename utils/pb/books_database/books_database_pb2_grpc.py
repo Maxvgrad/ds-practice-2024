@@ -6,8 +6,7 @@ import books_database_pb2 as books__database__pb2
 
 
 class BooksDatabaseServiceStub(object):
-    """The service definition.
-    """
+    """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
         """Constructor.
@@ -30,11 +29,30 @@ class BooksDatabaseServiceStub(object):
                 request_serializer=books__database__pb2.WriteRequest.SerializeToString,
                 response_deserializer=books__database__pb2.WriteResponse.FromString,
                 )
+        self.OpenTransaction = channel.unary_unary(
+                '/books_database.BooksDatabaseService/OpenTransaction',
+                request_serializer=books__database__pb2.OpenTransactionRequest.SerializeToString,
+                response_deserializer=books__database__pb2.OpenTransactionResponse.FromString,
+                )
+        self.InitTwoPhaseCommit = channel.unary_unary(
+                '/books_database.BooksDatabaseService/InitTwoPhaseCommit',
+                request_serializer=books__database__pb2.InitTwoPhaseCommitRequest.SerializeToString,
+                response_deserializer=books__database__pb2.InitTwoPhaseCommitResponse.FromString,
+                )
+        self.AbortTwoPhaseCommit = channel.unary_unary(
+                '/books_database.BooksDatabaseService/AbortTwoPhaseCommit',
+                request_serializer=books__database__pb2.AbortTwoPhaseCommitRequest.SerializeToString,
+                response_deserializer=books__database__pb2.AbortTwoPhaseCommitResponse.FromString,
+                )
+        self.CommitTwoPhaseCommit = channel.unary_unary(
+                '/books_database.BooksDatabaseService/CommitTwoPhaseCommit',
+                request_serializer=books__database__pb2.CommitTwoPhaseCommitRequest.SerializeToString,
+                response_deserializer=books__database__pb2.CommitTwoPhaseCommitResponse.FromString,
+                )
 
 
 class BooksDatabaseServiceServicer(object):
-    """The service definition.
-    """
+    """Missing associated documentation comment in .proto file."""
 
     def Read(self, request, context):
         """Missing associated documentation comment in .proto file."""
@@ -49,6 +67,30 @@ class BooksDatabaseServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def SyncWrite(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def OpenTransaction(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def InitTwoPhaseCommit(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def AbortTwoPhaseCommit(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CommitTwoPhaseCommit(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -72,6 +114,26 @@ def add_BooksDatabaseServiceServicer_to_server(servicer, server):
                     request_deserializer=books__database__pb2.WriteRequest.FromString,
                     response_serializer=books__database__pb2.WriteResponse.SerializeToString,
             ),
+            'OpenTransaction': grpc.unary_unary_rpc_method_handler(
+                    servicer.OpenTransaction,
+                    request_deserializer=books__database__pb2.OpenTransactionRequest.FromString,
+                    response_serializer=books__database__pb2.OpenTransactionResponse.SerializeToString,
+            ),
+            'InitTwoPhaseCommit': grpc.unary_unary_rpc_method_handler(
+                    servicer.InitTwoPhaseCommit,
+                    request_deserializer=books__database__pb2.InitTwoPhaseCommitRequest.FromString,
+                    response_serializer=books__database__pb2.InitTwoPhaseCommitResponse.SerializeToString,
+            ),
+            'AbortTwoPhaseCommit': grpc.unary_unary_rpc_method_handler(
+                    servicer.AbortTwoPhaseCommit,
+                    request_deserializer=books__database__pb2.AbortTwoPhaseCommitRequest.FromString,
+                    response_serializer=books__database__pb2.AbortTwoPhaseCommitResponse.SerializeToString,
+            ),
+            'CommitTwoPhaseCommit': grpc.unary_unary_rpc_method_handler(
+                    servicer.CommitTwoPhaseCommit,
+                    request_deserializer=books__database__pb2.CommitTwoPhaseCommitRequest.FromString,
+                    response_serializer=books__database__pb2.CommitTwoPhaseCommitResponse.SerializeToString,
+            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
             'books_database.BooksDatabaseService', rpc_method_handlers)
@@ -80,8 +142,7 @@ def add_BooksDatabaseServiceServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class BooksDatabaseService(object):
-    """The service definition.
-    """
+    """Missing associated documentation comment in .proto file."""
 
     @staticmethod
     def Read(request,
@@ -131,5 +192,73 @@ class BooksDatabaseService(object):
         return grpc.experimental.unary_unary(request, target, '/books_database.BooksDatabaseService/SyncWrite',
             books__database__pb2.WriteRequest.SerializeToString,
             books__database__pb2.WriteResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def OpenTransaction(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/books_database.BooksDatabaseService/OpenTransaction',
+            books__database__pb2.OpenTransactionRequest.SerializeToString,
+            books__database__pb2.OpenTransactionResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def InitTwoPhaseCommit(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/books_database.BooksDatabaseService/InitTwoPhaseCommit',
+            books__database__pb2.InitTwoPhaseCommitRequest.SerializeToString,
+            books__database__pb2.InitTwoPhaseCommitResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def AbortTwoPhaseCommit(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/books_database.BooksDatabaseService/AbortTwoPhaseCommit',
+            books__database__pb2.AbortTwoPhaseCommitRequest.SerializeToString,
+            books__database__pb2.AbortTwoPhaseCommitResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def CommitTwoPhaseCommit(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/books_database.BooksDatabaseService/CommitTwoPhaseCommit',
+            books__database__pb2.CommitTwoPhaseCommitRequest.SerializeToString,
+            books__database__pb2.CommitTwoPhaseCommitResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

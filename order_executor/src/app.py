@@ -68,6 +68,38 @@ class OrderExecutorState(Enum):
     PASSING_TOKEN = 3
 
 
+class Coordinator:
+    def __init__(self, participants):
+        self.participants = participants
+
+    def run(self, transaction_id=None):
+        logger.info("WAIT")
+        votes = []
+        for participant in self.participants:
+            vote = participant.Init()
+            votes.append(vote)
+            if vote == "VOTE_ABORT":
+                self.broadcast_abort()
+                return "Transaction Aborted"
+
+        # Phase 2: Decision
+        if all(vote == "VOTE_COMMIT" for vote in votes):
+            self.broadcast_commit()
+            return "Transaction Committed"
+        else:
+            self.broadcast_abort()
+            return "Transaction Aborted"
+
+    def broadcast_commit(self):
+        logger.info("Broadcasting global commit to all participants.")
+        for participant in self.participants:
+            participant.commit()
+
+    def broadcast_abort(self):
+        logger.info("Broadcasting global abort to all participants.")
+        for participant in self.participants:
+            participant.abort()
+
 class OrderExecutorService(order_executor_grpc.OrderExecutorServiceServicer):
 
     def __init__(self, replica_id, replicas, book_database_replica_urls):
@@ -114,42 +146,51 @@ class OrderExecutorService(order_executor_grpc.OrderExecutorServiceServicer):
             order = None
 
         if order is not None:
-            # submit processing
-            logger.info(f"Submit order {order.order_id} type {order.order_type} for processing.")
+            payment_channel = grpc.insecure_channel('payment:50057')
+            payment_stub = payment_grpc.PaymentServiceStub(payment_channel)
 
-            if order.order_type == "BOOK_ORDER":
-                try:
-                    order_payload = json.loads(order.payload)
-                    items = order_payload["items"]
-                    for item in items:
-                        books_database_replica_url = self.get_next_book_database_replica_url()
-                        request = books_database.ReadRequest(title=item["name"])
-                        book_info = read_book_info(books_database_replica_url, request)
-                        book_info.stock -= int(item['quantity'])
+            books_database_replica_url = self.get_next_book_database_replica_url()
+            books_database_channel = grpc.insecure_channel(books_database_replica_url)
+            books_database_stub = books_database_grpc.BooksDatabaseServiceStub(books_database_channel)
 
-                        if book_info.stock < 0:
-                            logger.error(f"Insufficient stock for the book: {book_info.title}.")
-                            raise OutOfStockException(book_info.title)
+            open_transaction_request = books_database.OpenTransactionRequest()
 
-                        request = books_database.WriteRequest(title=book_info.title, stock=book_info.stock, version=book_info.version)
-                        book_info = write_book_info(books_database_replica_url, request)
+            books_db_transaction_id = books_database_stub.OpenTransaction(open_transaction_request).transaction_id
 
-                    payment_details = order_payload["creditCard"]
-                    request = payment.ExecutePaymentRequest(
-                        payment_details=payment.PaymentDetails(
-                            number=payment_details.get("number", ""),
-                            expiration_date=payment_details.get("expirationDate", ""),
-                            cvv=payment_details.get("cvv", "")
-                        )
-                    )
-                    payment_response = execute_payment(request)
-                    logger.info(f"Payment executed payment_id={payment_response.payment_id}.")
-                except OutOfStockException as e:
-                    logger.error(e)
-                except Exception as e:
-                    logger.error("Error passing token.", e)
-                except:
-                    logger.error("Unexpected error during payment execution.")
+            try:
+                self.process_order(order, books_database_stub, payment_stub, books_db_transaction_id)
+                logger.info("state=WAIT action=SEND_VOTE_REQUEST")
+                books_database_abort_open_transaction_request = books_database.InitTwoPhaseCommitRequest(
+                    transaction_id=books_db_transaction_id)
+                books_database_init_transaction_status = books_database_stub.InitTwoPhaseCommit(
+                    books_database_abort_open_transaction_request).status
+
+                if books_database_init_transaction_status == "VOTE_ABORT":
+                    logger.info("state=ABORT action=SEND_GLOBAL_ABORT")
+
+                    books_database_abort_transaction_request = books_database.AbortTwoPhaseCommitRequest(
+                        transaction_id=books_db_transaction_id)
+                    books_database_abort_transaction_status = books_database_stub.AbortTwoPhaseCommit(
+                        books_database_abort_transaction_request).status
+                    logger.info("transaction_id=%s status=%s",
+                                books_db_transaction_id, books_database_abort_transaction_status)
+                elif books_database_init_transaction_status == "VOTE_COMMIT":
+                    logger.info("state=COMMIT action=SEND_GLOBAL_COMMIT")
+                    books_database_commit_transaction_request = books_database.CommitTwoPhaseCommitRequest(
+                        transaction_id=books_db_transaction_id)
+                    books_database_commit_transaction_status = books_database_stub.CommitTwoPhaseCommit(
+                        books_database_commit_transaction_request).status
+                    logger.info("transaction_id=%s status=%s",
+                                books_db_transaction_id, books_database_commit_transaction_status)
+            except Exception as e:
+                logger.info("state=ABORT action=SEND_GLOBAL_ABORT")
+                books_database_abort_transaction_request = books_database.AbortTwoPhaseCommitRequest(
+                    transaction_id=books_db_transaction_id)
+                books_database_abort_transaction_status = books_database_stub.AbortTwoPhaseCommit(
+                    books_database_abort_transaction_request).status
+                logger.info("transaction_id=%s status=%s",
+                            books_db_transaction_id, books_database_abort_transaction_status)
+
         else:
             time.sleep(2)
 
@@ -168,6 +209,44 @@ class OrderExecutorService(order_executor_grpc.OrderExecutorServiceServicer):
             logger.error("Unexpected error during passing token.")
         finally:
             self.state = OrderExecutorState.NO_TOKEN
+
+
+    def process_order(self, order, books_database_stub, payment_stub, books_db_transaction_id):
+        try:
+            order_payload = json.loads(order.payload)
+            items = order_payload["items"]
+            for item in items:
+                request = books_database.ReadRequest(title=item["name"])
+                book_info = read_book_info(books_database_stub, request)
+                book_info.stock -= int(item['quantity'])
+
+                if book_info.stock < 0:
+                    logger.error(f"Insufficient stock for the book: {book_info.title}.")
+                    raise OutOfStockException(book_info.title)
+
+                request = books_database.WriteRequest(title=book_info.title, stock=book_info.stock,
+                                                      version=book_info.version)
+                book_info = write_book_info(books_database_stub, request, books_db_transaction_id)
+
+            payment_details = order_payload["creditCard"]
+            request = payment.ExecutePaymentRequest(
+                payment_details=payment.PaymentDetails(
+                    number=payment_details.get("number", ""),
+                    expiration_date=payment_details.get("expirationDate", ""),
+                    cvv=payment_details.get("cvv", "")
+                )
+            )
+            payment_response = execute_payment(payment_stub, request)
+            logger.info(f"Payment executed payment_id={payment_response.payment_id}.")
+        except OutOfStockException as e:
+            logger.error(e)
+            raise e
+        except Exception as e:
+            logger.error("Error passing token.", e)
+            raise e
+        except:
+            logger.error("Unexpected error during payment execution.")
+            raise Exception("Unexpected error.")
 
     def get_next_replica(self):
         replicas = self.replicas
@@ -216,6 +295,7 @@ class OrderExecutorService(order_executor_grpc.OrderExecutorServiceServicer):
         self.next_database_replica_url_index = (self.next_database_replica_url_index + 1) % len(self.book_database_replica_urls)
         return self.book_database_replica_urls[self.next_database_replica_url_index]
 
+
 def pass_token(request, replica):
     max_retries = 3  # Maximum number of retries
     retry_delay = 1  # Delay between retries in seconds
@@ -261,38 +341,33 @@ def dequeue_order(retries=3, delay=2):
         raise grpc.RpcError("All retry attempts failed.")
 
 
-def execute_payment(request):
-    with grpc.insecure_channel('payment:50057') as channel:
-        stub = payment_grpc.PaymentServiceStub(channel)
-        response = stub.ExecutePayment(request)
+def execute_payment(stub, request):
+    response = stub.ExecutePayment(request)
+    return response
+
+
+def read_book_info(stub, request):
+    try:
+        response = stub.Read(request)
+        if not response.title:
+            raise ValueError("Book not found.")
         return response
+    except grpc.RpcError as e:
+        if e.code() == grpc.StatusCode.NOT_FOUND:
+            logger.error(f"Book with title {request.title} not found.")
+        else:
+            logger.error(f"Failed to read book info for title {request.title}: {e.details()}")
+        raise
 
 
-def read_book_info(replica_url, request):
-    with grpc.insecure_channel(replica_url) as channel:
-        stub = books_database_grpc.BooksDatabaseServiceStub(channel)
-        try:
-            response = stub.Read(request)
-            if not response.title:
-                raise ValueError("Book not found.")
-            return response
-        except grpc.RpcError as e:
-            if e.code() == grpc.StatusCode.NOT_FOUND:
-                logger.error(f"Book with title {request.title} not found.")
-            else:
-                logger.error(f"Failed to read book info for title {request.title}: {e.details()}")
-            raise
-
-
-def write_book_info(replica_url, request):
-    with grpc.insecure_channel(replica_url) as channel:
-        stub = books_database_grpc.BooksDatabaseServiceStub(channel)
-        try:
-            response = stub.Write(request)
-            return response
-        except grpc.RpcError as e:
-            logger.error(f"Failed to update book info for title {request.title}: {e.details()}")
-            raise
+def write_book_info(stub, request, books_db_transaction_id):
+    try:
+        metadata = [('transaction-id', books_db_transaction_id)]
+        response = stub.Write(request, metadata=metadata)
+        return response
+    except grpc.RpcError as e:
+        logger.error(f"Failed to update book info for title {request.title}: {e.details()}")
+        raise
 
 
 def serve(replica_id, replicas, book_database_replica_urls):

@@ -35,3 +35,49 @@ class WriteResponse(_message.Message):
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     success: bool
     def __init__(self, success: bool = ...) -> None: ...
+
+class OpenTransactionResponse(_message.Message):
+    __slots__ = ("transaction_id",)
+    TRANSACTION_ID_FIELD_NUMBER: _ClassVar[int]
+    transaction_id: str
+    def __init__(self, transaction_id: _Optional[str] = ...) -> None: ...
+
+class OpenTransactionRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class InitTwoPhaseCommitResponse(_message.Message):
+    __slots__ = ("status",)
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    def __init__(self, status: _Optional[str] = ...) -> None: ...
+
+class InitTwoPhaseCommitRequest(_message.Message):
+    __slots__ = ("transaction_id",)
+    TRANSACTION_ID_FIELD_NUMBER: _ClassVar[int]
+    transaction_id: str
+    def __init__(self, transaction_id: _Optional[str] = ...) -> None: ...
+
+class AbortTwoPhaseCommitResponse(_message.Message):
+    __slots__ = ("status",)
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    def __init__(self, status: _Optional[str] = ...) -> None: ...
+
+class AbortTwoPhaseCommitRequest(_message.Message):
+    __slots__ = ("transaction_id",)
+    TRANSACTION_ID_FIELD_NUMBER: _ClassVar[int]
+    transaction_id: str
+    def __init__(self, transaction_id: _Optional[str] = ...) -> None: ...
+
+class CommitTwoPhaseCommitResponse(_message.Message):
+    __slots__ = ("status",)
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    def __init__(self, status: _Optional[str] = ...) -> None: ...
+
+class CommitTwoPhaseCommitRequest(_message.Message):
+    __slots__ = ("transaction_id",)
+    TRANSACTION_ID_FIELD_NUMBER: _ClassVar[int]
+    transaction_id: str
+    def __init__(self, transaction_id: _Optional[str] = ...) -> None: ...
