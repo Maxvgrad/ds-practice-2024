@@ -22,3 +22,6 @@ This folder should contain your documentation, explaining the structure and cont
 
 ## Sequential consistency diagram (READ)
 ![consistency_read.png](consistency_read.png)
+
+## Order executor two-phase commit coordination
+![order-executor-two-phase-coordination.png](order-executor-two-phase-coordination.png)
