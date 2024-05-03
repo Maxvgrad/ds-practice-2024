@@ -118,38 +118,7 @@ class OrderExecutorService(order_executor_grpc.OrderExecutorServiceServicer):
             logger.info(f"Submit order {order.order_id} type {order.order_type} for processing.")
 
             if order.order_type == "BOOK_ORDER":
-                try:
-                    order_payload = json.loads(order.payload)
-                    items = order_payload["items"]
-                    for item in items:
-                        books_database_replica_url = self.get_next_book_database_replica_url()
-                        request = books_database.ReadRequest(title=item["name"])
-                        book_info = read_book_info(books_database_replica_url, request)
-                        book_info.stock -= int(item['quantity'])
-
-                        if book_info.stock < 0:
-                            logger.error(f"Insufficient stock for the book: {book_info.title}.")
-                            raise OutOfStockException(book_info.title)
-
-                        request = books_database.WriteRequest(title=book_info.title, stock=book_info.stock, version=book_info.version)
-                        book_info = write_book_info(books_database_replica_url, request)
-
-                    payment_details = order_payload["creditCard"]
-                    request = payment.ExecutePaymentRequest(
-                        payment_details=payment.PaymentDetails(
-                            number=payment_details.get("number", ""),
-                            expiration_date=payment_details.get("expirationDate", ""),
-                            cvv=payment_details.get("cvv", "")
-                        )
-                    )
-                    payment_response = execute_payment(request)
-                    logger.info(f"Payment executed payment_id={payment_response.payment_id}.")
-                except OutOfStockException as e:
-                    logger.error(e)
-                except Exception as e:
-                    logger.error("Error passing token.", e)
-                except:
-                    logger.error("Unexpected error during payment execution.")
+                self.process_order(order)
         else:
             time.sleep(2)
 
@@ -168,6 +137,41 @@ class OrderExecutorService(order_executor_grpc.OrderExecutorServiceServicer):
             logger.error("Unexpected error during passing token.")
         finally:
             self.state = OrderExecutorState.NO_TOKEN
+
+    def process_order(self, order):
+        try:
+            order_payload = json.loads(order.payload)
+            items = order_payload["items"]
+            for item in items:
+                books_database_replica_url = self.get_next_book_database_replica_url()
+                request = books_database.ReadRequest(title=item["name"])
+                book_info = read_book_info(books_database_replica_url, request)
+                book_info.stock -= int(item['quantity'])
+
+                if book_info.stock < 0:
+                    logger.error(f"Insufficient stock for the book: {book_info.title}.")
+                    raise OutOfStockException(book_info.title)
+
+                request = books_database.WriteRequest(title=book_info.title, stock=book_info.stock,
+                                                      version=book_info.version)
+                book_info = write_book_info(books_database_replica_url, request)
+
+            payment_details = order_payload["creditCard"]
+            request = payment.ExecutePaymentRequest(
+                payment_details=payment.PaymentDetails(
+                    number=payment_details.get("number", ""),
+                    expiration_date=payment_details.get("expirationDate", ""),
+                    cvv=payment_details.get("cvv", "")
+                )
+            )
+            payment_response = execute_payment(request)
+            logger.info(f"Payment executed payment_id={payment_response.payment_id}.")
+        except OutOfStockException as e:
+            logger.error(e)
+        except Exception as e:
+            logger.error("Error passing token.", e)
+        except:
+            logger.error("Unexpected error during payment execution.")
 
     def get_next_replica(self):
         replicas = self.replicas
