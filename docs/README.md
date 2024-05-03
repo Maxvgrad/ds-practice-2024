@@ -16,3 +16,9 @@ This folder should contain your documentation, explaining the structure and cont
 
 ## Order executor component diagram (token ring)
 ![token-ring-diagram.png](token-ring-diagram.png)
+
+## Sequential consistency diagram (WRITE)
+![consistency_write.png](consistency_write.png)
+
+## Sequential consistency diagram (READ)
+![consistency_read.png](consistency_read.png)
