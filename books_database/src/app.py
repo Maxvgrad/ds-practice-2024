@@ -3,6 +3,7 @@ import os
 import logging
 import grpc
 from concurrent import futures
+import uuid
 # Import gRPC stubs
 FILE = __file__ if '__file__' in globals() else os.getenv("PYTHONFILE", "")
 utils_path = os.path.abspath(os.path.join(FILE, '../../../utils/pb/books_database'))
@@ -31,9 +32,10 @@ class BooksDatabaseService(books_database_grpc.BooksDatabaseServiceServicer):
         self.is_primary = self.primary_replica_id == replica_id
         self.replicas = replicas
         self.storage = {}
+        self.transactions = {}
 
     def Read(self, request, context):
-        logger.info("title=%s", request.title)
+        logger.info("title=%s action=READ", request.title)
         title = request.title
         if title in self.storage:
             book_info = self.storage[title]
@@ -52,7 +54,32 @@ class BooksDatabaseService(books_database_grpc.BooksDatabaseServiceServicer):
                 title=book_info['title'], stock=book_info['stock'], version=book_info['version'])
 
     def Write(self, request, context):
-        logger.info("title=%s stock=%s version=%s", request.title, request.stock, request.version)
+        logger.info("title=%s stock=%s version=%s action=WRITE", request.title, request.stock, request.version)
+
+        metadata = dict(context.invocation_metadata())
+        transaction_id = metadata.get('transaction-id')
+
+        if transaction_id is not None:
+            logger.info("title=%s stock=%s version=%s transaction_id=%s action=WRITE",
+                        request.title, request.stock, request.version, transaction_id)
+
+            if transaction_id in self.transactions:
+                transaction = self.transactions[transaction_id]
+
+                if 'titles' not in transaction:
+                    transaction['titles'] = []
+                logger.info("title=%s stock=%s version=%s transaction_id=%s action=WRITE",
+                            request.title, request.stock, request.version, transaction_id)
+
+                transaction['titles'].append(request.title)
+                transaction[request.title] = {'title': request.title, 'stock': request.stock, 'version': request.version}
+                return books_database.WriteResponse(success=True)
+            else:
+                logger.error("transaction missing transaction_id=%s",transaction_id)
+
+        return self.perform_write(request)
+
+    def perform_write(self, request):
         if not self.is_primary:
             # Forward the write request to the primary
             return self.forward_write_to_primary(request)
@@ -89,8 +116,54 @@ class BooksDatabaseService(books_database_grpc.BooksDatabaseServiceServicer):
         return acknowledgments
 
     def SyncWrite(self, request, context):
+        logger.info("title=%s stock=%s version=%s action=SYNC_WRITE", request.title, request.stock, request.version)
         self.storage[request.title] = {'title': request.title, 'stock': request.stock, 'version': request.version}
         return books_database.WriteResponse(success=True)
+
+    def OpenTransaction(self, request, context):
+        logger.info("action=OPEN")
+        transaction_id = get_transaction_id()
+        self.transactions[transaction_id] = {
+            "state": 'INIT'
+        }
+        response = books_database.OpenTransactionResponse()
+        response.transaction_id = transaction_id
+        return response
+
+    def InitTwoPhaseCommit(self, request, context):
+        logger.info("transaction_id=%s action=INIT_TWO_PHASE_COMMIT", request.transaction_id)
+        transaction = self.transactions[request.transaction_id]
+        logger.info("transaction_id=%s state=%s", request.transaction_id, transaction['state'])
+        response = books_database.InitTwoPhaseCommitResponse()
+        if transaction['state'] == 'INIT':
+            transaction['state'] = 'READY'
+            response.status = 'VOTE_COMMIT'
+        else:
+            transaction['state'] = 'ABORT'
+            response.status = 'VOTE_ABORT'
+        logger.info("transaction_id=%s state=%s action=INIT_TWO_PHASE_COMMIT", request.transaction_id, transaction['state'])
+        return response
+
+    def AbortTwoPhaseCommit(self, request, context):
+        logger.info("transaction_id=%s action=ABORT", request.transaction_id)
+        del self.transactions[request.transaction_id]
+        return books_database.AbortTwoPhaseCommitResponse(status='ABORT')
+
+    def CommitTwoPhaseCommit(self, request, context):
+        logger.info("transaction_id=%s action=COMMIT", request.transaction_id)
+        transaction = self.transactions[request.transaction_id]
+        for title in transaction['titles']:
+            logger.info("transaction_id=%s title=%s", request.transaction_id, title)
+
+            book_info = transaction[title]
+            write_request = books_database.WriteRequest(
+                title=book_info['title'], stock=book_info['stock'], version=book_info['version'])
+            self.perform_write(write_request)
+        return books_database.CommitTwoPhaseCommitResponse(status='COMMIT')
+
+
+def get_transaction_id():
+    return str(uuid.uuid4())
 
 # Define the serve function to start the gRPC server
 def serve(replica_id, replicas):
