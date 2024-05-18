@@ -65,7 +65,7 @@ dictConfig({
     }
 })
 
-skip_validation = True
+skip_validation = False
 
 def greet(name='you'):
     # Establish a connection with the fraud-detection gRPC service.
