@@ -24,6 +24,20 @@ class Order:
         self.order_type = order_type
         self.payload = payload
 
+    def __lt__(self, other):
+        if not isinstance(other, Order):
+            return NotImplemented
+        return self.order_id < other.order_id
+
+    def __eq__(self, other):
+        if not isinstance(other, Order):
+            return NotImplemented
+        return self.order_id == other.order_id and self.order_type == other.order_type and self.payload == other.payload
+
+    def __repr__(self):
+        return f"Order(order_id={self.order_id}, order_type={self.order_type}, payload={self.payload})"
+
+
 
 class OrderQueueService(order_queue_grpc.OrderQueueServiceServicer):
 
