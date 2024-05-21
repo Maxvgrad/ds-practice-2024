@@ -1,0 +1,188 @@
+{
+	"info": {
+		"_postman_id": "39aadd91-53c1-42f2-b9ab-71d231ceb058",
+		"name": "Bookstore End-to-End Tests",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "33854151"
+	},
+	"item": [
+		{
+			"name": "Checkout - happy flow non-fraudulent",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status check\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"const response = pm.response.json();",
+							"",
+							"pm.test(\"Should have a valid JSON format response body\", function () {",
+							"    pm.expect(response).to.not.be.undefined;",
+							"});",
+							"",
+							"pm.test(\"Should have the required 'orderId' object in the response\", function () {",
+							"    pm.expect(response).to.be.an('object');",
+							"    pm.expect(response.orderId).to.exist;",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "Accept-Language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8,ru;q=0.7"
+					},
+					{
+						"key": "Connection",
+						"value": "keep-alive"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Origin",
+						"value": "http://localhost:8080"
+					},
+					{
+						"key": "Referer",
+						"value": "http://localhost:8080/"
+					},
+					{
+						"key": "User-Agent",
+						"value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"user\":{\n        \"name\":\"{{$randomName}}\",\n        \"contact\":\"{{$randomDomainName}}\"\n        },\n    \"creditCard\":{\n        \"number\":\"6034932528973614\",\n        \"expirationDate\":\"01/33\",\"cvv\":\"333\"\n    },\n    \"userComment\":\"{{$randomCity}}\",\n    \"items\":[\n        {\"name\":\"JavaScript - The Good Parts\",\"quantity\":1}\n    ],\n    \"discountCode\":\"ddd\",\n    \"shippingMethod\":\"ddd\",\n    \"giftMessage\":\"\",\n    \"billingAddress\":{\"street\":\"mm\",\"city\":\"mmm\",\"state\":\"mm\",\"zip\":\"333\",\"country\":\"Estonia\"},\n    \"giftWrapping\":false,\n    \"termsAndConditionsAccepted\":true,\n    \"notificationPreferences\":[\"email\"],\n    \"device\":{\"type\":\"Smartphone\",\"model\":\"Samsung Galaxy S10\",\"os\":\"Android 10.0.0\"},\n    \"browser\":{\"name\":\"Chrome\",\"version\":\"85.0.4183.127\"},\n    \"appVersion\":\"3.0.0\",\n    \"screenResolution\":\"1440x3040\",\n    \"referrer\":\"https://www.google.com\",\n    \"deviceLanguage\":\"en-US\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/checkout",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"checkout"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Checkout - fraudulent",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status check\", function () {",
+							"    pm.response.to.have.status(400);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "Accept-Language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8,ru;q=0.7"
+					},
+					{
+						"key": "Connection",
+						"value": "keep-alive"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Origin",
+						"value": "http://localhost:8080"
+					},
+					{
+						"key": "Referer",
+						"value": "http://localhost:8080/"
+					},
+					{
+						"key": "User-Agent",
+						"value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"user\":{\n        \"name\":\"{{$randomName}}\",\n        \"contact\":\"{{$randomDomainName}}\"\n        },\n    \"creditCard\":{\n        \"number\":\"6034932528973\",\n        \"expirationDate\":\"01/33\",\"cvv\":\"333\"\n    },\n    \"userComment\":\"{{$randomCity}}\",\n    \"items\":[\n        {\"name\":\"JavaScript - The Good Parts\",\"quantity\":1}\n    ],\n    \"discountCode\":\"ddd\",\n    \"shippingMethod\":\"ddd\",\n    \"giftMessage\":\"\",\n    \"billingAddress\":{\"street\":\"mm\",\"city\":\"mmm\",\"state\":\"mm\",\"zip\":\"333\",\"country\":\"Estonia\"},\n    \"giftWrapping\":false,\n    \"termsAndConditionsAccepted\":true,\n    \"notificationPreferences\":[\"email\"],\n    \"device\":{\"type\":\"Smartphone\",\"model\":\"Samsung Galaxy S10\",\"os\":\"Android 10.0.0\"},\n    \"browser\":{\"name\":\"Chrome\",\"version\":\"85.0.4183.127\"},\n    \"appVersion\":\"3.0.0\",\n    \"screenResolution\":\"1440x3040\",\n    \"referrer\":\"https://www.google.com\",\n    \"deviceLanguage\":\"en-US\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/checkout",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"checkout"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://0.0.0.0:8081",
+			"type": "string"
+		}
+	]
+}
