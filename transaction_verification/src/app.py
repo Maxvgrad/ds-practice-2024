@@ -12,6 +12,49 @@ sys.path.insert(0, utils_path)
 import transaction_verification_pb2 as transaction_verification
 import transaction_verification_pb2_grpc as transaction_verification_grpc
 
+from opentelemetry import trace
+from opentelemetry import metrics
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.trace.export import (
+    BatchSpanProcessor,
+    ConsoleSpanExporter,
+)
+from opentelemetry.sdk.metrics.export import (
+    ConsoleMetricExporter,
+    PeriodicExportingMetricReader,
+)
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+
+resource = Resource(attributes={
+    SERVICE_NAME: "transaction_verification"
+})
+
+provider = TracerProvider(resource=resource)
+processor = BatchSpanProcessor(OTLPSpanExporter(endpoint="http://observability:4317"))
+provider.add_span_processor(processor)
+
+# Sets the global default tracer provider
+trace.set_tracer_provider(provider)
+
+# Creates a tracer from the global tracer provider
+tracer = trace.get_tracer("transaction_verification.tracer")
+
+metric_reader = PeriodicExportingMetricReader(
+    OTLPMetricExporter(endpoint="http://observability:4317")
+)
+provider = MeterProvider(metric_readers=[metric_reader])
+
+# Sets the global default meter provider
+metrics.set_meter_provider(provider)
+
+# Creates a meter from the global meter provider
+meter = metrics.get_meter("transaction_verification.meter")
+
 logger = logging.getLogger('transaction_verification')
 
 
@@ -32,22 +75,29 @@ def verify_transaction(transaction_data):
 
 class TransactionVerificationService(transaction_verification_grpc.TransactionVerificationServiceServicer):
     def VerifyTransaction(self, request, context):
-        logger.info("user_id=%s", request.user_id)
-        # Extract transaction data from the gRPC request
-        transaction_data = {
-            'items': request.items,
-            'user_id': request.user_id,
-            'shipping_address': request.shipping_address,
-            'payment_details': request.payment_details
-        }
-        # Perform transaction verification
-        is_valid, message = verify_transaction(transaction_data)
-        # Create a response message
-        response = transaction_verification.TransactionResponse()
-        response.is_valid = is_valid
-        response.message = message
-        logger.info("is_valid=%s", response.is_valid)
-        return response
+        metadata = dict(context.invocation_metadata())
+        traceparent = metadata.get('traceparent')
+        carrier = {"traceparent": traceparent}
+        logger.info(carrier)
+        ctx = TraceContextTextMapPropagator().extract(carrier)
+
+        with tracer.start_as_current_span("VerifyTransaction", context=ctx):
+            logger.info("user_id=%s", request.user_id)
+            # Extract transaction data from the gRPC request
+            transaction_data = {
+                'items': request.items,
+                'user_id': request.user_id,
+                'shipping_address': request.shipping_address,
+                'payment_details': request.payment_details
+            }
+            # Perform transaction verification
+            is_valid, message = verify_transaction(transaction_data)
+            # Create a response message
+            response = transaction_verification.TransactionResponse()
+            response.is_valid = is_valid
+            response.message = message
+            logger.info("is_valid=%s", response.is_valid)
+            return response
 
 
 def luhn_checksum(card_number):
