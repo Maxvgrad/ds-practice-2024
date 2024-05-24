@@ -25,3 +25,6 @@ This folder should contain your documentation, explaining the structure and cont
 
 ## Order executor two-phase commit coordination
 ![order-executor-two-phase-coordination.png](order-executor-two-phase-coordination.png)
+
+## System diagram: complete
+![system-diagram-complete.png](system-diagram-complete.png)

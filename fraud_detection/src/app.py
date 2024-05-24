@@ -14,6 +14,49 @@ import fraud_detection_pb2_grpc as fraud_detection_grpc
 import grpc
 from concurrent import futures
 
+from opentelemetry import trace
+from opentelemetry import metrics
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.trace.export import (
+    BatchSpanProcessor,
+    ConsoleSpanExporter,
+)
+from opentelemetry.sdk.metrics.export import (
+    ConsoleMetricExporter,
+    PeriodicExportingMetricReader,
+)
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+
+resource = Resource(attributes={
+    SERVICE_NAME: "fraud_detection"
+})
+
+provider = TracerProvider(resource=resource)
+processor = BatchSpanProcessor(OTLPSpanExporter(endpoint="http://observability:4317"))
+provider.add_span_processor(processor)
+
+# Sets the global default tracer provider
+trace.set_tracer_provider(provider)
+
+# Creates a tracer from the global tracer provider
+tracer = trace.get_tracer("fraud_detection.tracer")
+
+metric_reader = PeriodicExportingMetricReader(
+    OTLPMetricExporter(endpoint="http://observability:4317")
+)
+provider = MeterProvider(metric_readers=[metric_reader])
+
+# Sets the global default meter provider
+metrics.set_meter_provider(provider)
+
+# Creates a meter from the global meter provider
+meter = metrics.get_meter("fraud_detection.meter")
+
 logger = logging.getLogger('fraud_detection')
 
 # Create a class to define the server functions, derived from
@@ -34,11 +77,19 @@ class HelloService(fraud_detection_grpc.HelloServiceServicer):
         logger.info("device=%s browser=%s appVersion=%s screenResolution=%s referrer=%s deviceLanguage=%s",
                      request.device, request.browser, request.appVersion, request.screenResolution,
                      request.referrer, request.deviceLanguage)
-        response = fraud_detection.DetectFraudResponse()
-        response.isFraud = False
-        response.reason = "No fraud"
-        logger.info("isFraud=%s", response.isFraud)
-        return response
+
+        metadata = dict(context.invocation_metadata())
+        traceparent = metadata.get('traceparent')
+        carrier = {"traceparent": traceparent}
+        logger.info(carrier)
+        ctx = TraceContextTextMapPropagator().extract(carrier)
+
+        with tracer.start_as_current_span("DetectFraud", context=ctx):
+            response = fraud_detection.DetectFraudResponse()
+            response.isFraud = False
+            response.reason = "No fraud"
+            logger.info("isFraud=%s", response.isFraud)
+            return response
 
 
 def serve():

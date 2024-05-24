@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from logging.config import dictConfig
 import json
+from time import time
 
 # This set of lines are needed to import the gRPC stubs.
 # The path of the stubs is relative to the current file, or absolute inside the container.
@@ -48,6 +49,58 @@ app = Flask(__name__)
 # Enable CORS for the app.
 CORS(app)
 
+from opentelemetry import trace, propagators, baggage
+from opentelemetry import metrics
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.trace.export import (
+    BatchSpanProcessor,
+    ConsoleSpanExporter,
+)
+from opentelemetry.sdk.metrics.export import (
+    ConsoleMetricExporter,
+    PeriodicExportingMetricReader,
+)
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+resource = Resource(attributes={
+    SERVICE_NAME: "orchestrator"
+})
+
+provider = TracerProvider(resource=resource)
+processor = BatchSpanProcessor(OTLPSpanExporter(endpoint="http://observability:4317"))
+provider.add_span_processor(processor)
+
+# Sets the global default tracer provider
+trace.set_tracer_provider(provider)
+
+# Creates a tracer from the global tracer provider
+tracer = trace.get_tracer("orchestrator.tracer")
+
+metric_reader = PeriodicExportingMetricReader(
+    OTLPMetricExporter(endpoint="http://observability:4317")
+)
+provider = MeterProvider(metric_readers=[metric_reader])
+
+# Sets the global default meter provider
+metrics.set_meter_provider(provider)
+
+# Creates a meter from the global meter provider
+meter = metrics.get_meter("orchestrator.meter")
+
+checkout_counter = meter.create_counter(
+    "checkout.counter", unit="1", description="Counts the number of checkouts"
+)
+
+http_server_duration = meter.create_histogram(
+    name="http.server.duration",
+    description="measures the duration of the inbound HTTP request",
+    unit="ms",
+)
 
 dictConfig({
     'version': 1,
@@ -77,38 +130,40 @@ def greet(name='you'):
     return response.greeting
 
 
-def detect_fraud(request):
+def detect_fraud(request, carrier):
     # Establish a connection with the fraud-detection gRPC service.
     with grpc.insecure_channel('fraud_detection:50051') as channel:
         # Create a stub object.
         stub = fraud_detection_grpc.HelloServiceStub(channel)
-        # Call the service through the stub object.
-        response = stub.DetectFraud(request)
+        metadata = [(key, value) for key, value in carrier.items()]
+        response = stub.DetectFraud(request, metadata=metadata)
     return response
 
 
-def verify_transaction(request):
+def verify_transaction(request, carrier):
     with grpc.insecure_channel('transaction_verification:50052') as channel:
+        metadata = [(key, value) for key, value in carrier.items()]
         stub = transaction_verification_grpc.TransactionVerificationServiceStub(channel)
-        response = stub.VerifyTransaction(request)
+        response = stub.VerifyTransaction(request, metadata=metadata)
     return response
 
 
-def calculate_suggestions(request):
+def calculate_suggestions(request, carrier):
     with grpc.insecure_channel('suggestions:50053') as channel:
         stub = suggestions_grpc.SuggestionsServiceStub(channel)
-        # Call the service through the stub object.
-        response = stub.CalculateSuggestions(request)
+        metadata = [(key, value) for key, value in carrier.items()]
+        response = stub.CalculateSuggestions(request, metadata=metadata)
     return response
 
 
-def enqueue_order(request):
+def enqueue_order(request, carrier):
     """
     Enqueue the order in the order queue service.
     """
     with grpc.insecure_channel('order_queue:50054') as channel:
         stub = order_queue_grpc.OrderQueueServiceStub(channel)
-        response = stub.EnqueueOrder(request)
+        metadata = [(key, value) for key, value in carrier.items()]
+        response = stub.EnqueueOrder(request, metadata=metadata)
     return response
 
    
@@ -263,81 +318,102 @@ def index():
     # Return the response.
     return response
 
-
 @app.route('/checkout', methods=['POST'])
 def checkout():
     """
     Responds with a JSON object containing the order ID, status, and suggested books.
     """
-    request_data = request.json
-    app.logger.info(
-        'device=type=%s, model=%s, os=%s, browser=name=%s, version=%s, appVersion=%s, screenResolution=%s, '
-        'referrer=%s, deviceLanguage=%s',
-        request_data['device']['type'],
-        request_data['device']['model'],
-        request_data['device']['os'],
-        request_data['browser']['name'],
-        request_data['browser']['version'],
-        request_data['appVersion'],
-        request_data['screenResolution'],
-        request_data['referrer'],
-        request_data['deviceLanguage']
+    with tracer.start_as_current_span("checkout") as span:
+        start_time = time()
+        request_data = request.json
+        app.logger.info(
+            'device=type=%s, model=%s, os=%s, browser=name=%s, version=%s, appVersion=%s, screenResolution=%s, '
+            'referrer=%s, deviceLanguage=%s',
+            request_data['device']['type'],
+            request_data['device']['model'],
+            request_data['device']['os'],
+            request_data['browser']['name'],
+            request_data['browser']['version'],
+            request_data['appVersion'],
+            request_data['screenResolution'],
+            request_data['referrer'],
+            request_data['deviceLanguage']
+            )
+
+        current_span = trace.get_current_span()
+        order_id = int(datetime.now().timestamp())
+        current_span.set_attribute("order_id", order_id)
+
+        suggested_books = []
+
+        carrier = {}
+        TraceContextTextMapPropagator().inject(carrier)
+
+        if not skip_validation:
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                verify_transaction_future = executor.submit(verify_transaction,
+                                                            convert_to_verify_transaction_request(request_data),
+                                                            carrier
+                                                            )
+                detect_fraud_future = executor.submit(detect_fraud, convert_to_detect_fraud_request(request_data),
+                                                      carrier)
+                calculate_suggestions_future = executor.submit(calculate_suggestions,
+                                                               convert_to_calculate_suggestions_request(request_data),
+                                                               carrier
+                                                               )
+
+                verify_transaction_result = verify_transaction_future.result()
+                detect_fraud_result = detect_fraud_future.result()
+                calculate_suggestions_result = calculate_suggestions_future.result()
+
+            if not verify_transaction_result.is_valid:
+                app.logger.info('Transaction invalid. message=%s', verify_transaction_result.message)
+                checkout_counter.add(1, {"state": "FAILED"})
+                http_server_duration.record((time() - start_time) * 1000)
+                return jsonify(
+                    {'error': f'Transaction unverified. Message {verify_transaction_result.message}. '
+                              f'Please check your transaction details and try again.'}), 400
+
+            if detect_fraud_result.isFraud:
+                app.logger.info('Fraud is detected. reason=%s', detect_fraud_result.reason)
+                checkout_counter.add(1, {"state": "FAILED"})
+                http_server_duration.record((time() - start_time) * 1000)
+                return jsonify(
+                    {'error': 'Your payment cannot be processed. Please contact customer support for further assistance.'}), 400
+
+            suggested_books = calculate_suggestions_result.suggested_books
+
+        app.logger.info('Suggested books size=%s', len(suggested_books))
+        suggested_books_list = [
+            {'bookId': book.book_id, 'title': book.title, 'author': book.author}
+            for book in suggested_books
+        ]
+        response_data = {
+            'orderId': order_id,
+            'status': 'Order Approved',
+            'suggestedBooks': suggested_books_list
+        }
+
+        order_details_json = json.dumps(request_data)
+
+        enqueue_order_request = order_queue.EnqueueOrderRequest(
+            priority=calculate_order_priority(request_data),
+            order_id=response_data['orderId'],
+            order_type="BOOK_ORDER",
+            payload=order_details_json
         )
 
-    suggested_books = []
+        enqueue_response = enqueue_order(enqueue_order_request, carrier)
+        app.logger.info('enqueue order_id=%s is_success=%s', enqueue_response.order_id, enqueue_response.is_success)
 
-    if not skip_validation:
-        with ThreadPoolExecutor(max_workers=3) as executor:
-            verify_transaction_future = executor.submit(verify_transaction,
-                                                        convert_to_verify_transaction_request(request_data))
-            detect_fraud_future = executor.submit(detect_fraud, convert_to_detect_fraud_request(request_data))
-            calculate_suggestions_future = executor.submit(calculate_suggestions,
-                                                           convert_to_calculate_suggestions_request(request_data))
+        if not enqueue_response.is_success:
+            checkout_counter.add(1, {"state": "FAILED"})
+            http_server_duration.record((time() - start_time) * 1000)
+            return jsonify({'error': 'Failed to process your order. Please try again later.'}), 500
 
-            verify_transaction_result = verify_transaction_future.result()
-            detect_fraud_result = detect_fraud_future.result()
-            calculate_suggestions_result = calculate_suggestions_future.result()
-
-        if not verify_transaction_result.is_valid:
-            app.logger.info('Transaction invalid. message=%s', verify_transaction_result.message)
-            return jsonify(
-                {'error': f'Transaction unverified. Message {verify_transaction_result.message}. '
-                          f'Please check your transaction details and try again.'}), 400
-
-        if detect_fraud_result.isFraud:
-            app.logger.info('Fraud is detected. reason=%s', detect_fraud_result.reason)
-            return jsonify(
-                {'error': 'Your payment cannot be processed. Please contact customer support for further assistance.'}), 400
-
-        suggested_books = calculate_suggestions_result.suggested_books
-
-    app.logger.info('Suggested books size=%s', len(suggested_books))
-    suggested_books_list = [
-        {'bookId': book.book_id, 'title': book.title, 'author': book.author}
-        for book in suggested_books
-    ]
-    response_data = {
-        'orderId': int(datetime.now().timestamp()),
-        'status': 'Order Approved',
-        'suggestedBooks': suggested_books_list
-    }
-
-    order_details_json = json.dumps(request_data)
-
-    enqueue_order_request = order_queue.EnqueueOrderRequest(
-        priority=calculate_order_priority(request_data),
-        order_id=response_data['orderId'],
-        order_type="BOOK_ORDER",
-        payload=order_details_json
-    )
-
-    enqueue_response = enqueue_order(enqueue_order_request)
-    app.logger.info('enqueue order_id=%s is_success=%s', enqueue_response.order_id, enqueue_response.is_success)
-
-    if not enqueue_response.is_success:
-        return jsonify({'error': 'Failed to process your order. Please try again later.'}), 500
-
-    return jsonify(response_data)
+        checkout_counter.add(1, {"state": "SUCCESS"})
+        http_server_duration.record((time() - start_time) * 1000)
+        return jsonify(response_data)
 
 
 if __name__ == '__main__':
